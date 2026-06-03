@@ -80,7 +80,7 @@ def create_trace_with_fallback(user_id: Optional[str] = None, session_id: Option
             
             class MockGeneration:
                 def end(self, **kwargs):
-                    pass
+                    return MockGeneration()
                     
             return MockTrace(**kwargs)
     except Exception as e:
@@ -105,7 +105,7 @@ def create_trace_with_fallback(user_id: Optional[str] = None, session_id: Option
         
         class MockGeneration:
             def end(self, **kwargs):
-                pass
+                return MockGeneration()
                 
         return MockTrace(**kwargs)
 
@@ -161,6 +161,44 @@ def log_graph_rag_flow(query: str, context: str, response: str, metadata: Option
         return trace.id
     except Exception as e:
         print(f"Ошибка логирования GraphRAG: {e}")
+        return None
+
+
+def log_rag_retrieval(query: str, documents: list, metadata: Optional[Dict[str, Any]] = None):
+    """
+    Логирует процесс RAG-поиска
+    """
+    try:
+        trace = create_trace_with_fallback()
+        span = trace.span(
+            name="rag_retrieval",
+            input={"query": query},
+            output={"documents": documents},
+            metadata=metadata
+        )
+        span.end()
+        return trace.id
+    except Exception as e:
+        print(f"Ошибка логирования RAG-поиска: {e}")
+        return None
+
+
+def log_graph_query(query: str, result: Any, metadata: Optional[Dict[str, Any]] = None):
+    """
+    Логирует выполнение графового запроса
+    """
+    try:
+        trace = create_trace_with_fallback()
+        span = trace.span(
+            name="graph_query",
+            input={"query": query},
+            output={"result": result},
+            metadata=metadata
+        )
+        span.end()
+        return trace.id
+    except Exception as e:
+        print(f"Ошибка логирования графового запроса: {e}")
         return None
 
 
@@ -247,6 +285,49 @@ def log_llm_call(model: str, prompt: str, response: str, duration_ms: Optional[f
             generation.end(metadata={"duration_ms": duration_ms})
     except Exception as e:
         print(f"Ошибка логирования вызова LLM: {e}")
+
+
+def get_trace(trace_id: str):
+    """
+    Получает существующий trace по ID
+    """
+    try:
+        langfuse = initialize_langfuse()
+        if langfuse:
+            return langfuse.trace(trace_id)
+        else:
+            # Возвращаем mock-объект, если Langfuse не инициализирован
+            class MockTrace:
+                def __init__(self, trace_id):
+                    self.id = trace_id
+                
+                def span(self, **kwargs):
+                    return MockSpan()
+                    
+                def generation(self, **kwargs):
+                    return MockGeneration()
+                    
+                def event(self, **kwargs):
+                    pass
+            
+            return MockTrace(trace_id)
+    except Exception as e:
+        print(f"Ошибка получения трассировки: {e}")
+        # Возвращаем mock-объект в случае ошибки
+        class MockTrace:
+            def __init__(self, trace_id):
+                self.id = trace_id
+            
+            def span(self, **kwargs):
+                return MockSpan()
+                
+            def generation(self, **kwargs):
+                return MockGeneration()
+                
+            def event(self, **kwargs):
+                pass
+                
+        return MockTrace(trace_id)
 
 
 # Глобальный клиент Langfuse

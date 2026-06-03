@@ -13,7 +13,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # Изменяем импорт для правильного пути к langfuse_integration
-from backend.langfuse_integration import langfuse_client as langfuse, get_trace, flush_langfuse
+from backend.api.langfuse_integration import langfuse, get_trace, flush_langfuse, create_trace_with_fallback
 
 # Конфигурация
 API_URL = "http://localhost:8000"
@@ -22,7 +22,7 @@ def send_message(message: str, user_role: str, history: list) -> tuple:
     """Отправка сообщения в API и обновление истории."""
     
     # Создаем трейс в Langfuse для всего чата
-    trace = get_trace(
+    trace = create_trace_with_fallback(
         name="sov-chat",
         metadata={"message": message, "user_role": user_role, "interface": "sov-ui"}
     )

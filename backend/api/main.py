@@ -25,10 +25,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 # Импорт агента и Langfuse
 from backend.agents.multi_agent_graph import app as agent_app
 
-# Добавляем путь к корню для импорта langfuse_integration
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from backend.langfuse_integration import (
-    langfuse_client as langfuse, 
+# Импорт из langfuse_integration (используем абсолютный путь из корня проекта)
+from backend.api.langfuse_integration import (
+    langfuse, 
     get_trace, 
     flush_langfuse, 
     log_rag_retrieval,
@@ -39,7 +38,7 @@ from backend.langfuse_integration import (
     # log_llm_call  # Добавляем импорт функции логирования вызова LLM
 )
 
-# Импорт дополнительных функций из api/langfuse_integration
+# Импорт дополнительных функций из langfuse_integration
 from backend.api.langfuse_integration import (
     log_performance_metrics,
     log_security_metrics,
