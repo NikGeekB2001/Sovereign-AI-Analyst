@@ -1,0 +1,94 @@
+networks:
+  sovereign-network:
+    driver: bridge
+services:
+  grafana:
+    depends_on:
+    - prometheus
+    environment:
+    - GF_SECURITY_ADMIN_PASSWORD=admin
+    image: grafana/grafana:latest
+    networks:
+    - sovereign-network
+    ports:
+    - 3001:3000
+    restart: unless-stopped
+    volumes:
+    - grafana_data:/var/lib/grafana
+  langfuse:
+    depends_on:
+    - postgres
+    environment:
+    - NEXTAUTH_SECRET=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+    - SALT=q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2
+    - DATABASE_URL=postgresql://langfuse:langfuse@postgres:5432/langfuse
+    - NEXT_PUBLIC_LANGFUSE_SECONDARY_INGESTION_HOSTNAME=http://localhost:3002
+    - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=true
+    - NEXTAUTH_URL=http://localhost:3002
+    image: langfuse/langfuse:2.28.0
+    networks:
+    - sovereign-network
+    ports:
+    - 3002:3000
+    restart: unless-stopped
+  neo4j:
+    environment:
+    - NEO4J_AUTH=neo4j/password
+    - NEO4J_dbms_security_auth__enabled=false
+    image: neo4j:5-community
+    networks:
+    - sovereign-network
+    ports:
+    - 7474:7474
+    - 7687:7687
+    restart: unless-stopped
+    volumes:
+    - neo4j_data:/data
+    - neo4j_logs:/logs
+    - neo4j_import:/var/lib/neo4j/import
+    - neo4j_plugins:/plugins
+  postgres:
+    environment:
+    - POSTGRES_DB=langfuse
+    - POSTGRES_USER=langfuse
+    - POSTGRES_PASSWORD=langfuse
+    image: postgres:15
+    networks:
+    - sovereign-network
+    ports:
+    - 5432:5432
+    restart: unless-stopped
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+  prometheus:
+    image: prom/prometheus:latest
+    networks:
+    - sovereign-network
+    ports:
+    - 9090:9090
+    restart: unless-stopped
+    volumes:
+    - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml
+    - prometheus_data:/prometheus
+  qdrant:
+    environment:
+    - QDRANT__SERVICE__GRPC_PORT=6334
+    - QDRANT__SERVICE__HTTP_PORT=6333
+    image: qdrant/qdrant:latest
+    networks:
+    - sovereign-network
+    ports:
+    - 6333:6333
+    - 6334:6334
+    restart: unless-stopped
+    volumes:
+    - qdrant_data:/qdrant/storage
+volumes:
+  grafana_data: null
+  neo4j_data: null
+  neo4j_import: null
+  neo4j_logs: null
+  neo4j_plugins: null
+  postgres_data: null
+  prometheus_data: null
+  qdrant_data: null

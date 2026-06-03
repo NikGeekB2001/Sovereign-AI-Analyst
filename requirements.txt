@@ -1,0 +1,17 @@
+fastapi==0.109.0
+uvicorn[standard]
+langgraph==0.0.20
+langchain-core
+pydantic==2.5.3
+neo4j-driver
+qdrant-client
+langfuse==2.28.0
+python-dotenv
+psutil
+openai
+numpy
+pandas
+sentence-transformers
+transformers
+torch
+ollama

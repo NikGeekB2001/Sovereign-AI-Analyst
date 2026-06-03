@@ -1,0 +1,60 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+' ============================================================
+' C4 Level 1: Контекстная диаграмма системы
+' Интеграция AI-платформы в ландшафт (ERP, CRM, User Channels)
+' ============================================================
+
+title C4 Level 1: Контекстная диаграмма - Sovereign-AI-Analyst Platform
+
+skinparam linetype ortho
+skinparam {
+    ArrowColor #555
+    ArrowThickness 1.5
+    ArrowFontColor #333
+    RectangleBorderColor #2563eb
+    RectangleFontColor #333
+}
+
+' --- Внешние акторы ---
+
+Person(user, "Сотрудник", "Пользователь платформы, задает вопросы на естественном языке")
+Person(admin, "Security Admin", "Управление ролями, политиками RBAC и Guardrails")
+Person(aiEngineer, "AI Engineer", "Анализирует метрики LLM, настраивает промпты в Langfuse")
+
+' --- Системы ---
+
+System(system, "Sovereign-AI-Analyst Platform", "Извлечение знаний из неструктурированных данных, GraphRAG + RBAC + Multi-Agent (Plan-Observe-Act), Air-gapped, On-premise")
+System_Ext(erp, "ERP/CRM", "Корпоративные системы - источники данных")
+System_Ext(docFlow, "Документооборот", "PDF, DOCX, сканы чертежей и отчетов")
+
+' --- Связи ---
+
+Rel(user, system, "Задает вопросы через Gradio UI", "HTTPS/JSON")
+Rel(admin, system, "Настройка RBAC и политик", "Admin Interface")
+Rel(aiEngineer, system, "Анализ метрик и управление промптами", "HTTPS/JSON")
+Rel(system, erp, "Загрузка документов (Ingestion)", "Secure Connection")
+Rel(system, docFlow, "Импорт неструктурированных данных", "Batch/Scheduled")
+
+' --- Примечания ---
+
+note right of system
+  **Ключевые возможности**:
+  - Plan-Observe-Act Multi-Agent System
+  - GraphRAG (Neo4j + Qdrant)
+  - RBAC фильтрация на уровне чанков/узлов
+  - Input/Output Guardrails (PII, Injection)
+  - Air-gapped (vLLM, без облачных API)
+  - Langfuse LLM Observability
+  - Поддержка русского языка (Qwen 2.5/3)
+  ---
+  **Production Features**:
+  - AsyncPostgresSaver (Checkpointer)
+  - Circular Fallback (LLM Registry)
+  - Rate Limiting (slowapi)
+  - SSE Streaming Response
+  - Long-term Memory (mem0 + pgvector)
+end note
+
+@enduml

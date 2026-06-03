@@ -1,0 +1,96 @@
+@startuml
+
+title Диаграмма развертывания - FastAPI LangGraph Agent Production Template
+
+skinparam linetype ortho
+skinparam {
+    ArrowColor #555
+    ArrowThickness 1.5
+    ArrowFontColor #333
+    RectangleBorderColor #2563eb
+    RectangleFontColor #333
+}
+skinparam rectangle {
+    StereotypeFontSize 8
+    Shadowing <<node>> false
+    Shadowing <<boundary>> false
+}
+skinparam componentStyle rectangle
+
+node "DMZ" as dmz {
+    [Nginx / Load Balancer\nReverse Proxy, Rate Limiting] as LB
+}
+
+node "Control Plane" as cp {
+    [FastAPI Gateway\nAPI Gateway, Auth, Rate Limiting] as API
+    [LangGraph Orchestrator\nPlan-Observe-Act, Agent Coordination] as ORCH
+    [PostgreSQL\nAgent State, Sessions] as DB
+}
+
+node "Compute Plane" as compute {
+    [vLLM\nQwen2.5-32B AWQ, KV-cache] as VLLM
+    [LangChain Tools\nVector Search, Graph DB] as TOOLS
+}
+
+node "Data Plane" as data {
+    [Qdrant\nVector DB, Embeddings] as VECTORDB
+    [Neo4j\nGraph DB, Knowledge Graph] as GRAPHDB
+}
+
+node "Observability" as obs {
+    [Langfuse\nLLM Tracing, Analytics] as LF
+    [OpenTelemetry\nTraces, Metrics, Logs] as OTEL
+    [Prometheus\nMetrics, GPU Usage] as PROM
+    [Grafana\nDashboards, Alerts] as GRAF
+}
+
+node "Security" as sec {
+    [HashiCorp Vault\nSecrets Management] as VAULT
+}
+
+LB --> API : HTTPS (TLS 1.3)
+API --> ORCH : Sanitized Request
+ORCH --> DB : State Persistence
+API --> VAULT : Secrets (gRPC)
+
+ORCH --> VLLM : LLM Inference
+ORCH --> TOOLS : Tool Calls
+TOOLS --> VECTORDB : Vector Search
+TOOLS --> GRAPHDB : Graph Traversal
+
+API --> OTEL : Traces + Metrics
+ORCH --> OTEL : Agent Spans
+VLLM --> OTEL : Inference Metrics
+OTEL --> LF : LLM Traces
+OTEL --> PROM : Metrics
+PROM --> GRAF : Data Source
+
+VAULT --> API : Dynamic Secrets
+VAULT --> ORCH : DB Credentials
+VAULT --> VLLM : Model API Keys
+
+note right of ORCH
+  **LangGraph Agents**:
+  - Planner Agent
+  - Retriever Agent
+  - Analyst Agent
+  - Security Guard Agent
+  - Synthesizer Agent
+  - Coordinator Agent
+end note
+
+note bottom of compute
+  **Compute Resources**:
+  - vLLM x2 (GPU)
+  - LangChain Tools
+  - Optimized for LLM workloads
+end note
+
+note bottom of data
+  **Data Storage**:
+  - Qdrant (Vector Search)
+  - Neo4j (Graph DB)
+  - RBAC enabled
+end note
+
+@enduml

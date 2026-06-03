@@ -1,0 +1,58 @@
+# Игнорировать временные и промежуточные файлы
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*.pyi
+*$py.class
+*.swp
+*.swo
+*.swn
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+*.tar.gz
+*.zip
+
+# Игнорировать директории, не нужные для сборки
+Временные скрипты/
+tmp_scripts/
+deploy/
+packages/
+downloads/
+data/
+models/
+logs/
+*.log
+
+# Игнорировать файлы конфигурации и среды
+.env
+.env.local
+.dockerignore
+.gitignore
+README.md
+LICENSE
+setup_project.py
+
+# Игнорировать IDE и редакторы
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*.swn
+
+# Игнорировать системные файлы
+.DS_Store
+Thumbs.db
+
+# Игнорировать презентации и документацию
+*.pptx
+docs/
+examples/
+
+# Игнорировать виртуальное окружение
+venv/

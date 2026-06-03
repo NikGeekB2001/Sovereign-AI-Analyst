@@ -1,0 +1,97 @@
+# ============================================
+# Sovereign AI Analyst - .gitignore
+# ============================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# --- Virtual environments ---
+sovereign_env/
+venv/
+.venv/
+env/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# --- Environment & Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Temporary scripts ---
+Временные скрипты/
+
+# --- RBAC demo & test scripts ---
+RBAC/
+
+# --- Backups ---
+бекап/
+бекап_перед_финальными_изменениями/
+бекап_скриптов/
+финальный_бекап_системы/
+*.bak
+*.backup
+
+# --- Nested copies / duplicates ---
+Sovereign-AI-Analyst/
+Users/
+sovereignai-analyst/
+
+# --- Infrastructure data ---
+infra/data/clickhouse_data/
+infra/data/neo4j_data/
+infra/data/neo4j_logs/
+infra/data/pgadmin_data/
+infra/data/postgres_data/
+infra/data/qdrant_storage/
+
+# --- Models ---
+infra/models/
+
+# --- Dataset ---
+data/ruslawod/
+
+# --- Examples & prototypes ---
+examples/
+docs/Materials/multi_agent_colab.py
+docs/Materials/multi_agent_prototype.py
+docs/Materials/architecture_visualization.html
+
+# --- Simplified/unused backend ---
+backend/api/main_simple.py
+
+# --- Docker volumes ---
+*.data/
+
+# --- Presentations ---
+*.pptx
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Chainlit ---
+ui/.files/
+
+# --- Misc ---
+*.tmp
+*.temp

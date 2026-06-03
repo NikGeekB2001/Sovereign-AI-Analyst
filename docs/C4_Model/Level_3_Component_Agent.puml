@@ -1,0 +1,151 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' ============================================================
+' C4 Level 3: Диаграмма компонентов
+' Показывает внутреннее устройство Multi-Agent Orchestrator (Production)
+' ============================================================
+
+title C4 Level 3: Диаграмма компонентов - Multi-Agent System (Plan-Observe-Act)
+
+skinparam linetype ortho
+skinparam {
+    ArrowColor #555
+    ArrowThickness 1.5
+    ArrowFontColor #333
+    RectangleBorderColor #2563eb
+    RectangleFontColor #333
+}
+
+' --- Граница контейнера Multi-Agent Orchestrator ---
+
+Container_Boundary(agent, "Multi-Agent Orchestrator (LangGraph)") {
+
+    ' Coordinator Agent - управляет выполнением плана и маршрутизацией
+    Component(coordinator, "Coordinator Agent", "LangGraph Node", "Управление выполнением плана, маршрутизация между агентами")
+
+    ' Planner Agent - декомпозиция задачи в план действий
+    Component(planner, "Planner Agent", "LangGraph Node", "Декомпозиция задачи в план действий (JSON mode)")
+
+    ' Retriever Agent - гибридный поиск (Vector + Graph)
+    Component(retriever, "Retriever Agent", "LangGraph Node", "Гибридный поиск (Vector + Graph) через LangChain Tools")
+
+    ' Reranker - реранжирование результатов по релевантности
+    Component(reranker, "Reranker Component", "CrossEncoder (BAAI/bge-reranker-v2-m3)", "Реранжирование результатов по релевантности")
+
+    ' Analyst Agent - анализ и подготовка ранжированного контекста
+    Component(analyst, "Analyst Agent", "LangGraph Node", "Анализ и подготовка ранжированного контекста")
+
+    ' Security Guard Agent - RBAC фильтрация и PII masking
+    Component(security, "Security Guard Agent", "LangGraph Node", "RBAC фильтрация, PII masking")
+
+    ' Synthesizer Agent - генерация финального ответа через vLLM
+    Component(synthesizer, "Synthesizer Agent", "LangGraph Node", "Генерация финального ответа через vLLM Client")
+
+    ' Memory Module - хранение состояния агента и истории сессий
+    Component(memory, "Memory Module", "AsyncPostgresSaver + mem0", "Agent State (AsyncPostgresSaver), Long-term Memory (mem0 + pgvector)")
+
+    ' Input Guardrails - проверка входящего запроса (PII, Injection)
+    Component(guardrails_in, "Input Guardrails", "Python/Regex + slowapi", "PII detection, Prompt Injection check, Rate Limiting")
+
+    ' Output Guardrails - проверка исходящего ответа (Data Leakage)
+    Component(guardrails_out, "Output Guardrails", "Python/Regex", "Data Leakage check, RBAC enforcement")
+
+    ' LLM Service - управление LLM вызовами с Circular Fallback
+    Component(llm_service, "LLM Service", "LLMRegistry + tenacity", "Circular Fallback, Retries (exponential backoff), Structured Output")
+
+    ' Langfuse Integration - LLM трассировка и аналитика промптов
+    Component(langfuse_client, "Langfuse Integration", "Langfuse CallbackHandler", "LLM Tracing, Prompt Analytics, Cost Tracking")
+}
+
+' --- Связи между компонентами ---
+
+' Координатор управляет циклом выполнения плана
+Rel(coordinator, planner, "Управление циклом выполнения", "Plan Control")
+
+' Планировщик передает задачу извлечения
+Rel(planner, retriever, "Передача задачи извлечения", "State Transition")
+
+' Retriever передает результаты на реранжирование
+Rel(retriever, reranker, "Результаты поиска для реранжирования", "Raw Results")
+
+' Реранжированные результаты передаются аналитику
+Rel(reranker, analyst, "Реранжированные результаты", "Ranked Results")
+
+' Аналитик передает ранжированный контекст на проверку безопасности
+Rel(analyst, security, "Ранжированный контекст", "Ranked Context")
+
+' Security Guard передает отфильтрованный контекст синтезатору
+Rel(security, synthesizer, "Отфильтрованный контекст", "Safe Context")
+
+' Синтезатор сообщает координатору о завершении
+Rel(synthesizer, coordinator, "Сообщение о завершении", "Completion Signal")
+
+' Memory Module читает/записывает состояние координатора
+Rel(memory, coordinator, "Чтение/запись состояния (AsyncPostgresSaver)", "State Management")
+
+' Memory Module читает/записывает долгосрочную память
+Rel(memory, planner, "Long-term Memory (mem0)", "User Context")
+
+' Input Guardrails передает санитизированный запрос координатору
+Rel(guardrails_in, coordinator, "Санитизированный запрос", "Validated Input")
+
+' Синтезатор передает ответ на Output Guardrails
+Rel(synthesizer, guardrails_out, "Сгенерированный ответ", "Raw Response")
+
+' Синтезатор вызывает LLM Service для генерации
+Rel(synthesizer, llm_service, "LLM Generate (Circular Fallback)", "LLM API")
+
+' LLM Service переключает модели при ошибке
+Rel(llm_service, llm_service, "Circular Fallback (next model)", "Retry")
+
+' Координатор отправляет трейсы агентов в Langfuse
+Rel(coordinator, langfuse_client, "Трассировка агентов", "Spans/Traces")
+
+' Синтезатор логирует метрики генерации в Langfuse
+Rel(synthesizer, langfuse_client, "Логирование генерации", "LLM Metrics")
+
+' --- Примечания с описанием фаз ---
+
+note right of planner
+  **Фаза PLAN**
+  - Декомпозиция задачи
+  - Генерация плана действий
+  - Создание подзадач
+  - Long-term Memory (mem0)
+end note
+
+note right of retriever
+  **Фаза OBSERVE**
+  - Векторный поиск в Qdrant
+  - Графовый поиск в Neo4j
+  - Сбор контекста
+  - LangChain Tools
+end note
+
+note right of synthesizer
+  **Фаза ACT**
+  - Генерация ответа (vLLM)
+  - Circular Fallback (LLM Registry)
+  - Quality Guardrails
+  - SSE Streaming Response
+end note
+
+note right of llm_service
+  **LLM Service (Production)**
+  - Circular Fallback (LLM Registry)
+  - Retries (tenacity, exponential backoff)
+  - Structured Output (Pydantic)
+  - Timeout budget (60s total)
+  - Model health check
+end note
+
+note right of memory
+  **Memory (Production)**
+  - AsyncPostgresSaver (Checkpointer)
+  - Long-term Memory (mem0 + pgvector)
+  - Cache Layer (Valkey/Redis)
+  - Session State Persistence
+end note
+
+@enduml

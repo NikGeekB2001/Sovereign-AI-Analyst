@@ -1,0 +1,253 @@
+import os
+from typing import Optional, Dict, Any
+from langfuse import Langfuse
+from contextvars import ContextVar
+
+
+# Контекстная переменная для отслеживания trace_id
+current_trace_id: ContextVar[Optional[str]] = ContextVar("current_trace_id", default=None)
+
+
+def initialize_langfuse():
+    """
+    Инициализирует клиент Langfuse, если включена трассировка
+    """
+    if os.getenv("LANGFUSE_TRACING_ENABLED", "").lower() == "true":
+        try:
+            langfuse = Langfuse(
+                host=os.getenv("LANGFUSE_HOST", "http://localhost:3000"),
+                public_key=os.getenv("LANGFUSE_PUBLIC_KEY", ""),
+                secret_key=os.getenv("LANGFUSE_SECRET_KEY", "")
+            )
+            return langfuse
+        except Exception as e:
+            print(f"Ошибка инициализации Langfuse: {e}")
+            return None
+    return None
+
+
+def get_trace_url(trace_id: str) -> Optional[str]:
+    """
+    Возвращает URL трассировки для Langfuse
+    """
+    try:
+        langfuse_host = os.getenv("LANGFUSE_HOST", "http://localhost:3000")
+        return f"{langfuse_host}/trace/{trace_id}"
+    except Exception:
+        return None
+
+
+def flush_langfuse():
+    """
+    Сбрасывает буферизированные данные Langfuse
+    """
+    try:
+        langfuse = initialize_langfuse()
+        if langfuse:
+            langfuse.flush()
+    except Exception:
+        pass
+
+
+def create_trace_with_fallback(user_id: Optional[str] = None, session_id: Optional[str] = None, **kwargs):
+    """
+    Создает трассировку с fallback-логикой
+    """
+    try:
+        langfuse = initialize_langfuse()
+        if langfuse:
+            trace_params = {"user_id": user_id, "session_id": session_id}
+            trace_params.update(kwargs)
+            return langfuse.trace(**trace_params)
+        else:
+            # Fallback: возвращаем mock-объект с минимальной функциональностью
+            class MockTrace:
+                def __init__(self, **params):
+                    self.id = params.get("id", "mock-trace-id")
+                
+                def span(self, **kwargs):
+                    return MockSpan()
+                    
+                def generation(self, **kwargs):
+                    return MockGeneration()
+            
+            class MockSpan:
+                def span(self, **kwargs):
+                    return MockSpan()
+                    
+                def end(self):
+                    pass
+            
+            class MockGeneration:
+                def end(self, **kwargs):
+                    pass
+                    
+            return MockTrace(**kwargs)
+    except Exception as e:
+        print(f"Ошибка создания трассировки: {e}")
+        # Возвращаем mock-объект в случае ошибки
+        class MockTrace:
+            def __init__(self, **params):
+                self.id = "fallback-trace-id"
+            
+            def span(self, **kwargs):
+                return MockSpan()
+                
+            def generation(self, **kwargs):
+                return MockGeneration()
+        
+        class MockSpan:
+            def span(self, **kwargs):
+                return MockSpan()
+                
+            def end(self):
+                pass
+        
+        class MockGeneration:
+            def end(self, **kwargs):
+                pass
+                
+        return MockTrace(**kwargs)
+
+
+def log_user_interaction(user_id: str, query: str, response: str, metadata: Optional[Dict[str, Any]] = None):
+    """
+    Логирует взаимодействие пользователя с системой
+    """
+    try:
+        trace = create_trace_with_fallback(user_id=user_id)
+        span = trace.span(
+            name="user_interaction",
+            input={"query": query},
+            output={"response": response},
+            metadata=metadata
+        )
+        span.end()
+        return trace.id
+    except Exception as e:
+        print(f"Ошибка логирования взаимодействия: {e}")
+        return None
+
+
+def log_graph_rag_flow(query: str, context: str, response: str, metadata: Optional[Dict[str, Any]] = None):
+    """
+    Логирует процесс GraphRAG в Langfuse
+    """
+    try:
+        trace = create_trace_with_fallback()
+        span = trace.span(
+            name="graph_rag_process",
+            input={"query": query},
+            output={"response": response},
+            metadata=metadata
+        )
+        
+        # Логируем этапы процесса
+        retrieval_span = span.span(
+            name="retrieval_phase",
+            input={"query": query},
+            output={"context": context}
+        )
+        retrieval_span.end()
+        
+        synthesis_span = span.span(
+            name="synthesis_phase",
+            input={"context": context, "query": query},
+            output={"response": response}
+        )
+        synthesis_span.end()
+        
+        span.end()
+        return trace.id
+    except Exception as e:
+        print(f"Ошибка логирования GraphRAG: {e}")
+        return None
+
+
+def log_performance_metrics(name: str, value: float, unit: str = "", metadata: Optional[Dict[str, Any]] = None):
+    """
+    Логирует метрики производительности
+    """
+    try:
+        langfuse = initialize_langfuse()
+        if langfuse:
+            langfuse.score(
+                name=name,
+                value=value,
+                unit=unit,
+                metadata=metadata
+            )
+    except Exception as e:
+        print(f"Ошибка логирования метрик производительности: {e}")
+
+
+def log_security_metrics(event_type: str, severity: str, description: str, metadata: Optional[Dict[str, Any]] = None):
+    """
+    Логирует метрики безопасности
+    """
+    try:
+        trace = create_trace_with_fallback()
+        span = trace.span(
+            name=f"security_{event_type}",
+            input={"severity": severity, "description": description},
+            metadata=metadata
+        )
+        span.end()
+    except Exception as e:
+        print(f"Ошибка логирования метрик безопасности: {e}")
+
+
+def log_business_metrics(metric_name: str, value: float, metadata: Optional[Dict[str, Any]] = None):
+    """
+    Логирует бизнес-метрики
+    """
+    try:
+        langfuse = initialize_langfuse()
+        if langfuse:
+            langfuse.score(
+                name=metric_name,
+                value=value,
+                metadata=metadata
+            )
+    except Exception as e:
+        print(f"Ошибка логирования бизнес-метрик: {e}")
+
+
+def log_error_metrics(error_type: str, error_message: str, severity: str = "medium", metadata: Optional[Dict[str, Any]] = None):
+    """
+    Логирует метрики ошибок
+    """
+    try:
+        trace = create_trace_with_fallback()
+        span = trace.span(
+            name="error_event",
+            input={"type": error_type, "message": error_message, "severity": severity},
+            metadata=metadata
+        )
+        span.end()
+    except Exception as e:
+        print(f"Ошибка логирования метрик ошибок: {e}")
+
+
+def log_llm_call(model: str, prompt: str, response: str, duration_ms: Optional[float] = None, metadata: Optional[Dict[str, Any]] = None):
+    """
+    Логирует вызов LLM
+    """
+    try:
+        trace = create_trace_with_fallback()
+        generation = trace.generation(
+            name="llm_call",
+            input={"prompt": prompt},
+            output={"response": response},
+            model=model,
+            model_parameters={"temperature": 0.7} if not metadata else metadata.get("model_parameters", {}),
+            metadata=metadata
+        )
+        if duration_ms:
+            generation.end(metadata={"duration_ms": duration_ms})
+    except Exception as e:
+        print(f"Ошибка логирования вызова LLM: {e}")
+
+
+# Глобальный клиент Langfuse
+langfuse = initialize_langfuse()

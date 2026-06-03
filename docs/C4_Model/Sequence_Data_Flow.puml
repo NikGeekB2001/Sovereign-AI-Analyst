@@ -1,0 +1,136 @@
+@startuml
+
+' ============================================================
+' Sequence Diagram: Детальный флоу обработки сложного запроса
+' User -> Guardrails -> Rerank -> Agent Loop -> Tool Execution -> Response
+' ============================================================
+
+title Диаграмма последовательности: Обработка запроса (Plan-Observe-Act)
+
+' --- Участники ---
+
+actor "Пользователь" as User
+participant "Gradio UI" as GRADIO
+participant "API Gateway\n+ Guardrails" as API
+participant "Coordinator Agent" as CA
+participant "Planner Agent" as PA
+participant "Retriever Agent" as RA
+participant "Reranker" as RR
+participant "Analyst Agent" as AA
+participant "Security Guard Agent" as SA
+participant "Synthesizer Agent" as SY
+participant "Neo4j\nGraph DB" as Neo
+participant "Qdrant\nVector DB" as Qdr
+participant "vLLM\nLLM Serving" as LLM
+database "PostgreSQL\nCheckpointer" as PS
+participant "Langfuse\nObservability" as LF
+participant "OpenTelemetry\nCollector" as OTEL
+
+' ============================================================
+' ФАЗА 1: Входящий запрос, Rate Limiting и Guardrails
+' ============================================================
+
+User -> GRADIO : Ввод вопроса на естественном языке
+GRADIO -> API : HTTP-запрос (с JWT токеном)
+
+' Rate Limiting: проверка лимитов запросов
+API -> API : Rate Limiting (slowapi, per-endpoint limits)
+
+' Input Guardrails: проверка на PII и Prompt Injection
+API -> API : Input Guardrails (PII detection, Prompt Injection check)
+API -> OTEL : Логирование входящего запроса
+API -> LF : Начало трассировки (trace)
+
+' ============================================================
+' ФАЗА 2: PLAN - Декомпозиция задачи + Long-term Memory
+' ============================================================
+
+API -> CA : Инициализация сессии агента (санитизированный запрос)
+
+' Long-term Memory: поиск релевантного контекста пользователя
+CA -> PS : Search Long-term Memory (mem0 + pgvector)
+PS --> CA : Relevant User Context
+
+CA -> PA : Передача запроса в Planner
+PA -> PA : Декомпозиция задачи в план действий (JSON mode)
+PA --> CA : Возврат плана действий
+
+' ============================================================
+' ФАЗА 3: OBSERVE - Гибридный поиск
+' ============================================================
+
+CA -> RA : Запуск фазы извлечения (Observe)
+
+' Векторный поиск в Qdrant с фильтрацией по роли
+RA -> Qdr : Vector Search (filter: user_role, clearance_level)
+Qdr --> RA : Relevant Chunks (с RBAC метаданными)
+
+' Графовый обход в Neo4j с фильтрацией по роли
+RA -> Neo : Graph Traversal (filter: user_role, clearance_level)
+Neo --> RA : Related Entities and Context (с RBAC метаданными)
+
+RA --> CA : Возврат извлеченного контекста
+
+' ============================================================
+' ФАЗА 4: RERANK - Реранжирование результатов
+' ============================================================
+
+CA -> RR : Запуск реранжирования
+RR -> RR : CrossEncoder реранжирование по релевантности
+RR --> CA : Результаты реранжирования (отсортированы по score)
+
+' ============================================================
+' ФАЗА 5: ANALYZE - Анализ контекста
+' ============================================================
+
+CA -> AA : Запуск фазы анализа
+AA -> AA : Анализ и подготовка ранжированного контекста
+AA --> CA : Возврат отранжированного контекста
+
+' ============================================================
+' ФАЗА 6: SECURITY - RBAC фильтрация и PII маскировка
+' ============================================================
+
+CA -> SA : Запуск фазы безопасности
+SA -> SA : RBAC фильтрация (удаление недоступных чанков/узлов)
+SA -> SA : PII маскировка (персон. данные)
+SA --> CA : Возврат отфильтрованного безопасного контекста
+
+' ============================================================
+' ФАЗА 7: ACT - Генерация ответа (с Circular Fallback)
+' ============================================================
+
+CA -> SY : Запуск фазы синтеза (Act)
+SY -> LLM : Prompt + Safe Context
+
+' Circular Fallback: при ошибке переключение на следующую модель
+alt LLM Response OK
+    LLM --> SY : Сгенерированный ответ
+else LLM Error (Rate Limit / Timeout)
+    LLM -> LLM : Circular Fallback (next model in LLM Registry)
+    LLM --> SY : Сгенерированный ответ (from fallback model)
+end
+
+SY --> CA : Возврат сгенерированного ответа
+
+' ============================================================
+' ФАЗА 8: Сохранение состояния и аудит
+' ============================================================
+
+CA -> CA : Сохранение состояния агента
+CA -> PS : Сохранение сессии и истории (PostgreSQL Checkpointer)
+CA -> LF : Логирование спанов агентов и метрик LLM
+CA -> OTEL : Отправка метрик и трейсов
+
+' ============================================================
+' ФАЗА 9: Output Guardrails и SSE Streaming ответ
+' ============================================================
+
+CA -> API : Raw Response
+API -> API : Output Guardrails (Data Leakage check, RBAC enforcement)
+API -> OTEL : Логирование ответа
+API -> LF : Завершение трассировки
+API -> GRADIO : Safe Response (SSE Streaming)
+GRADIO -> User : Потоковый вывод ответа (SSE: Server-Sent Events)
+
+@enduml

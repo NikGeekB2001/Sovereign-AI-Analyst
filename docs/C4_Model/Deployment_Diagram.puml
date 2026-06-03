@@ -1,0 +1,189 @@
+@startuml
+
+' ============================================================
+' Диаграмма развертывания - Sovereign-AI-Analyst Platform (Production)
+' ============================================================
+
+title Диаграмма развертывания - Sovereign-AI-Analyst Platform (Production)
+
+' --- Настройка стилей для ровных стрелок ---
+skinparam linetype ortho
+skinparam {
+    ArrowColor #555
+    ArrowThickness 1.5
+    ArrowFontColor #333
+    RectangleBorderColor #2563eb
+    RectangleFontColor #333
+}
+skinparam rectangle {
+    StereotypeFontSize 8
+    Shadowing <<node>> false
+    Shadowing <<boundary>> false
+}
+skinparam componentStyle rectangle
+
+' --- Определение узлов (Nodes) ---
+
+' DMZ - Demilitarized Zone (Зона демилитаризации)
+node "DMZ" as dmz {
+    ' Nginx / Load Balancer - балансировщик нагрузки и reverse proxy
+    [Nginx / Load Balancer\nReverse Proxy, Rate Limiting] as LB
+}
+
+' Control Plane - управляющий слой
+node "Control Plane" as cp {
+    ' Gradio UI - веб-интерфейс пользователя с потоковой передачей
+    [Gradio UI\nЧат-интерфейс, Streaming SSE] as GRADIO
+    ' FastAPI Gateway + Guardrails - API шлюз с защитными механизмами
+    [FastAPI Gateway + Guardrails\nAuth (JWT), Rate Limiting, PII/Injection Check] as API
+    ' LangGraph Orchestrator - оркестратор агентов с Plan-Observe-Act паттерном
+    [LangGraph Orchestrator\nPlan-Observe-Act, Agent Coordination] as ORCH
+    ' PostgreSQL Checkpointer - хранилище состояния агентов
+    [PostgreSQL Checkpointer\nAsyncPostgresSaver, Agent State, Sessions] as DB
+    ' Long-term Memory (mem0) - долгосрочная память с pgvector
+    [Long-term Memory (mem0)\npgvector, User Context Cache] as MEMORY
+}
+
+' Compute Plane - вычислительный слой
+node "Compute Plane" as compute {
+    ' vLLM Instance 1 - первая инстанция vLLM на GPU 0
+    [vLLM Instance 1 (GPU 0)\nQwen2.5-32B AWQ, KV-cache] as VLLM1
+    ' vLLM Instance 2 - вторая инстанция vLLM на GPU 1
+    [vLLM Instance 2 (GPU 1)\nQwen2.5-32B AWQ, KV-cache] as VLLM2
+    ' vLLM Load Balancer - балансировщик нагрузки для vLLM
+    [vLLM Load Balancer\nRound-robin, Health Check] as VLLM_LB
+    ' LangChain Tools - инструменты для работы с данными
+    [LangChain Tools\nVector Search, Graph Search, Reranker] as TOOLS
+}
+
+' Data Plane - слой данных
+node "Data Plane" as data {
+    ' Qdrant - векторная база данных с RBAC
+    [Qdrant\nVector DB, Embeddings + RBAC Payload] as VECTORDB
+    ' Neo4j - графовая база данных с RBAC
+    [Neo4j\nGraph DB, Knowledge Graph + RBAC Nodes] as GRAPHDB
+}
+
+' Observability - слой наблюдаемости
+node "Observability" as obs {
+    ' Langfuse - трассировка LLM и анализ промптов
+    [Langfuse\nLLM Tracing, Prompt Analytics, Cost Tracking] as LF
+    ' OpenTelemetry Collector - сбор трассировок и метрик
+    [OpenTelemetry Collector\nTraces, Metrics, Logs (OTLP)] as OTEL
+    ' Prometheus - система мониторинга метрик
+    [Prometheus\nMetrics: tokens/sec, GPU, RBAC filter rate] as PROM
+    ' Grafana - дашборды и алерты
+    [Grafana\nDashboards, Alerts, SLA Monitoring] as GRAF
+}
+
+' Security - слой безопасности
+node "Security" as sec {
+    ' HashiCorp Vault - управление секретами
+    [HashiCorp Vault\nSecrets, API Keys, DB Credentials] as VAULT
+}
+
+' --- Связи между компонентами ---
+
+' --- DMZ ---
+' Nginx перенаправляет трафик в Gradio UI через HTTPS
+LB --> GRADIO : HTTPS (TLS 1.3)
+
+' --- Control Plane ---
+' Gradio UI отправляет запросы в API Gateway
+GRADIO --> API : HTTP/JSON (SSE Streaming)
+' API Gateway передает санитизированный запрос в оркестратор
+API --> ORCH : Санитизированный запрос
+' Оркестратор сохраняет состояние в PostgreSQL
+ORCH --> DB : State Persistence (AsyncPostgresSaver)
+' Оркестратор использует долгосрочную память
+ORCH --> MEMORY : Long-term Memory (mem0 + pgvector)
+' API Gateway запрашивает секреты из Vault
+API --> VAULT : Secrets Management (gRPC)
+
+' --- Compute Plane ---
+' Оркестратор отправляет запросы в vLLM Load Balancer
+ORCH --> VLLM_LB : LLM Inference (with Circular Fallback)
+' vLLM Load Balancer распределяет нагрузку
+VLLM_LB --> VLLM1 : Load Balanced
+VLLM_LB --> VLLM2 : Load Balanced
+' Оркестратор вызывает LangChain Tools
+ORCH --> TOOLS : Tool Calls (Vector Search, Graph Search, Reranker)
+
+' --- Data Plane ---
+' LangChain Tools обращаются к векторной БД
+TOOLS --> VECTORDB : Vector Search + RBAC Filter (gRPC)
+' LangChain Tools обращаются к графовой БД
+TOOLS --> GRAPHDB : Graph Traversal + RBAC Filter (Bolt)
+
+' --- Observability ---
+' API Gateway отправляет трассировки в OpenTelemetry
+API --> OTEL : Traces + Metrics (OTLP)
+' Оркестратор отправляет спаны агентов
+ORCH --> OTEL : Agent Spans (OTLP)
+' vLLM инстансы отправляют метрики
+VLLM1 --> OTEL : Inference Metrics (OTLP)
+VLLM2 --> OTEL : Inference Metrics (OTLP)
+' OpenTelemetry отправляет данные в Langfuse
+OTEL --> LF : LLM Traces (Langfuse SDK)
+' OpenTelemetry отправляет метрики в Prometheus
+OTEL --> PROM : Metrics (Remote Write)
+' Prometheus предоставляет данные для Grafana
+PROM --> GRAF : Data Source
+
+' --- Security ---
+' Vault предоставляет динамические секреты API Gateway
+VAULT --> API : Dynamic Secrets + Rate Limit Config
+' Vault предоставляет credentials оркестратору
+VAULT --> ORCH : DB Credentials
+' Vault предоставляет API keys vLLM инстансам
+VAULT --> VLLM1 : Model API Keys
+VAULT --> VLLM2 : Model API Keys
+
+' --- Заметки с описаниями ---
+
+' Заметка о LangGraph агентах
+note right of ORCH
+  **LangGraph Agents (Plan-Observe-Act)**:
+  - Planner Agent: Декомпозиция задач
+  - Retriever Agent: Гибридный поиск
+  - Analyst Agent: Реранжирование
+  - Security Guard Agent: RBAC + PII
+  - Synthesizer Agent: Генерация ответа
+  - Coordinator Agent: Управление планом
+  ---
+  **Production Features**:
+  - AsyncPostgresSaver (Checkpointer)
+  - Circular Fallback (LLM Registry)
+  - Rate Limiting (slowapi)
+  - SSE Streaming
+end note
+
+' Заметка о вычислительных ресурсах
+note bottom of compute
+  **Compute Resources**:
+  - vLLM x2 (GPU, AWQ, KV-cache)
+  - LangChain Tools (Vector, Graph, Reranker)
+  - Circular Fallback на LLM Registry
+  - Optimized for LLM workloads
+end note
+
+' Заметка о хранилище данных
+note bottom of data
+  **Data Storage**:
+  - Qdrant (Vector Search + RBAC payload)
+  - Neo4j (Graph DB + RBAC nodes)
+  - PostgreSQL (Checkpointer + mem0 pgvector)
+  - Air-gapped
+end note
+
+' Заметка о безопасности
+note bottom of VAULT
+  **Безопасность**:
+  - Vault управляет секретами
+  - RBAC на уровне чанков/узлов
+  - Input/Output Guardrails
+  - Rate Limiting per endpoint
+  - Без хардкода кредов
+end note
+
+@enduml

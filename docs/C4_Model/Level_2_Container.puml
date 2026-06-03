@@ -1,0 +1,144 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+' ============================================================
+' C4 Level 2: Диаграмма контейнеров
+' Показывает микросервисную архитектуру платформы (Production)
+' ============================================================
+
+title C4 Level 2: Диаграмма контейнеров - Sovereign-AI-Analyst Platform
+
+skinparam linetype ortho
+skinparam {
+    ArrowColor #555
+    ArrowThickness 1.5
+    ArrowFontColor #333
+    RectangleBorderColor #2563eb
+    RectangleFontColor #333
+}
+
+' --- Внешние акторы ---
+
+Person(user, "Сотрудник", "Пользователь платформы")
+
+' --- Внешние системы ---
+
+System_Ext(erp, "ERP/CRM", "Корпоративные системы")
+System_Ext(docFlow, "Документооборот", "PDF, DOCX, сканы")
+
+' --- Граница платформы ---
+
+Container_Boundary(platform, "Sovereign-AI-Analyst Platform") {
+
+    ' Gradio UI - чат-интерфейс с SSE streaming
+    Container(gradio, "Gradio UI", "Python/Gradio", "Чат-интерфейс, SSE Streaming, потоковый вывод ответов")
+
+    ' API Gateway - точка входа с Guardrails, Rate Limiting, JWT
+    Container(api, "API Gateway + Guardrails", "FastAPI + slowapi", "JWT Auth, Rate Limiting (per-endpoint), PII-фильтрация, Prompt Injection защита")
+
+    ' Оркестратор - ядро системы, управляет агентами через LangGraph
+    Container(orchestrator, "LangGraph Orchestrator", "LangGraph + AsyncPostgresSaver", "Plan-Observe-Act, State Management, Agent Coordination, Circular Fallback")
+
+    ' LLM Serving - inference-движок с квантованием AWQ и Circular Fallback
+    Container(llm, "LLM Serving", "vLLM + LLM Registry", "Qwen2.5-32B-Instruct AWQ, KV-cache optimization, Circular Fallback, Health Check")
+
+    ' LangChain Tools - инструменты для агентов
+    Container(tools, "LangChain Tools", "Python/LangChain", "VectorSearchTool (Qdrant), GraphSearchTool (Neo4j), RerankTool (CrossEncoder)")
+
+    ' Qdrant - векторная БД с RBAC payload filter
+    Container(vdb, "Vector DB", "Qdrant", "Хранение эмбеддингов чанков + RBAC payload filter")
+
+    ' Neo4j - графовая БД, Knowledge Graph с RBAC на узлах/ребрах
+    Container(gdb, "Graph DB", "Neo4j", "Knowledge Graph, RBAC на узлах и ребрах графа")
+
+    ' Ingestion Pipeline - обработка и индексация документов
+    Container(ingest, "Ingestion Pipeline", "Python", "Парсинг PDF/Чертежей, Extract Graph, Chunking")
+
+    ' PostgreSQL - хранение состояния агентов, сессий и долгосрочной памяти
+    Container(checkpointer, "State Checkpointer + Memory", "PostgreSQL + AsyncPostgresSaver + mem0", "Agent State (AsyncPostgresSaver), Sessions, Long-term Memory (mem0 + pgvector)")
+
+    ' Langfuse - LLM Observability (трассировка, аналитика промптов)
+    Container(langfuse, "Langfuse", "Python/Flask", "LLM Tracing, Prompt Analytics, Cost Tracking, Sessions")
+}
+
+' --- Связи между контейнерами ---
+
+' Пользователь заходит через Gradio UI
+Rel(user, gradio, "Чат-интерфейс (SSE Streaming)", "HTTPS")
+
+' Gradio отправляет API запросы в Gateway
+Rel(gradio, api, "API запросы", "HTTP/JSON + SSE")
+
+' Gateway передает санитизированный запрос в оркестратор
+Rel(api, orchestrator, "Санитизированный запрос", "HTTP/JSON")
+
+' Оркестратор сохраняет/читает состояние агентов
+Rel(orchestrator, checkpointer, "Сохранение/чтение состояния + Long-term Memory", "SQL + pgvector")
+
+' Оркестратор вызывает LLM для генерации (с Circular Fallback)
+Rel(orchestrator, llm, "Generate/Tool Call (Circular Fallback)", "LLM API")
+
+' Оркестратор вызывает LangChain Tools
+Rel(orchestrator, tools, "Tool Calls", "Python")
+
+' Tools ищут векторы с фильтрацией по роли
+Rel(tools, vdb, "Vector Search + RBAC Filter", "gRPC/HTTP")
+
+' Tools обходит граф с фильтрацией по роли
+Rel(tools, gdb, "Graph Traversal + RBAC Filter", "Bolt Protocol")
+
+' Ingestion Pipeline индексирует эмбеддинги в Qdrant
+Rel(ingest, vdb, "Индексация эмбеддингов", "Vector Storage")
+
+' Ingestion Pipeline индексирует сущности и связи в Neo4j
+Rel(ingest, gdb, "Индексация сущностей и связей", "Graph Storage")
+
+' API шлёт трейсы и метрики в Langfuse
+Rel(api, langfuse, "LLM Traces and Metrics", "Langfuse SDK")
+
+' Оркестратор шлёт спаны агентов в Langfuse
+Rel(orchestrator, langfuse, "Agent Spans", "Langfuse SDK")
+
+' ERP/CRM синхронизирует данные через Ingestion
+Rel(erp, ingest, "Синхронизация данных", "Scheduled")
+
+' Документооборот импортирует документы через Ingestion
+Rel(docFlow, ingest, "Импорт документов", "Batch uploads")
+
+' --- Примечания ---
+
+note right of orchestrator
+  **Многоагентная система**:
+  - Planner Agent: Декомпозиция задач
+  - Retriever Agent: Гибридный поиск
+  - Analyst Agent: Реранжирование
+  - Security Guard Agent: RBAC фильтрация
+  - Synthesizer Agent: Генерация ответа
+  - Coordinator Agent: Управление планом
+  ---
+  **Production Features**:
+  - AsyncPostgresSaver (Checkpointer)
+  - Circular Fallback (LLM Registry)
+  - Rate Limiting (slowapi)
+  - SSE Streaming
+  - Long-term Memory (mem0)
+end note
+
+note right of tools
+  **LangChain Tools**:
+  - VectorSearchTool → Qdrant
+  - GraphSearchTool → Neo4j
+  - RerankTool → CrossEncoder
+  - AskHumanTool → User Input
+end note
+
+note right of api
+  **API Gateway**:
+  - JWT Auth
+  - Rate Limiting (slowapi)
+  - Input Guardrails (PII, Injection)
+  - Output Guardrails (Data Leakage)
+  - SSE Streaming Response
+end note
+
+@enduml
