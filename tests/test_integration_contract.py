@@ -20,6 +20,9 @@ NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION = os.getenv("QDRANT_COLLECTION", "ruslawod")
+# pytest не читает .env: фиксируем модель эмбеддинга до инициализации синглтона ретривера
+os.environ.setdefault("EMBEDDING_MODEL", "bge-m3")
+os.environ.setdefault("OLLAMA_BASE_URL", "http://localhost:11434")
 
 
 def _dbs_ready() -> bool:
@@ -116,3 +119,26 @@ def test_loader_idempotent_rerun():
         timeout=300,
     )
     assert res.returncode == 0, f"Загрузчик упал: {res.stderr[-2000:]}"
+
+
+def test_dispatcher_graph_query_live():
+    """graph.query через диспетчер против живого Neo4j."""
+    from backend.services.tool_dispatcher import execute_tool
+
+    r = execute_tool(
+        "graph.query",
+        {"query": "MATCH (a:LegalAct) RETURN a.act_id, a.title LIMIT 3"},
+        "куратор",
+    )
+    assert r["ok"] is True, r
+    assert r["data"]["count"] >= 1, r
+    assert "rows" in r["data"]
+
+
+def test_dispatcher_vector_search_live():
+    """vector.search через диспетчер против живого Qdrant (нужен Ollama)."""
+    from backend.services.tool_dispatcher import execute_tool
+
+    r = execute_tool("vector.search", {"query": "налоги", "top_k": 3}, "куратор")
+    assert r["ok"] is True, r
+    assert len(r["data"]["documents"]) >= 1, r

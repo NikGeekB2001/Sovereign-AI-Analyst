@@ -1,0 +1,66 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' ============================================================
+' C4 Level 3: Компоненты MCP Tool Layer (контракт docs/mcp_design.md)
+' Маршрут вызова: API -> Tool Registry (валидация) -> Tool Dispatcher (scopes+исполнение)
+' Реализация: backend/services/tool_dispatcher.py
+' ============================================================
+
+title C4 Level 3: MCP Tool Layer — вызов инструментов
+
+skinparam linetype ortho
+skinparam {
+    ArrowColor #555
+    ArrowThickness 1.5
+    ArrowFontColor #333
+    RectangleBorderColor #2563eb
+    RectangleFontColor #333
+}
+
+' --- Внешние роли ---
+
+Person(client, "Клиент", "UI / внешний агент (MCP)")
+System_Ext(obs, "Langfuse", "Observability (span: tool, tokens, latency, error_code)")
+
+' --- Границы: Tool Layer ---
+
+Container_Boundary(toolLayer, "MCP Tool Surface (FastAPI /api/v1)") {
+
+    Component(api, "API Gateway", "FastAPI", "POST /api/v1/tools/call; аутентификация X-API-Key -> роль (переходно: user_role в теле)")
+
+    Component(registry, "Tool Registry", "tool_registry.py", "Каталог инструментов + JSON Schema; validate_args -> SOV-1001/SOV-1003")
+
+    Component(dispatcher, "Tool Dispatcher", "tool_dispatcher.py", "Проверка scopes по роли -> SOV-4001; маршрутизация; единая обёртка результата")
+
+    Component(graphTools, "Graph Tools", "graph.query / graph.schema", "read-only Cypher (cypher_guard) -> Neo4j")
+
+    Component(vectorTools, "Vector Tools", "vector.search / rerank / upsert", "Qdrant + bge-m3 (эмбеддинг), Qwen2.5-7B (реранкер); RBAC-фильтр access_level")
+
+    Component(chatTools, "Chat Tools", "chat.complete / chat.stream", "Полный конвейер LangGraph (Plan-Observe-Act); chat.stream - фаза 3 (SSE)")
+}
+
+' --- Существующие контейнеры ---
+
+Container(orchestrator, "LangGraph Orchestrator", "LangGraph", "7 агентов: input_guardrail...output_guardrail")
+Container(gdb, "Graph DB", "Neo4j", "LegalAct/Authority/Keyword, access_level на узлах")
+Container(vdb, "Vector DB", "Qdrant", "Коллекция ruslawod, payload access_level")
+Container(llm, "LLM Serving", "Ollama / vLLM", "qwen2.5:7b (LLM+judge), bge-m3 (эмбеддинги)")
+
+' --- Связи ---
+
+Rel(client, api, "POST /api/v1/tools/call", "tool, arguments, user_role")
+Rel(api, registry, "validate_args(tool, args)", "SOV-1001 / SOV-1003")
+Rel(api, dispatcher, "execute_tool(tool, args, role)", "scopes -> SOV-4001")
+Rel(dispatcher, graphTools, "dispatch", "graph.query / graph.schema")
+Rel(dispatcher, vectorTools, "dispatch", "vector.search / rerank / upsert")
+Rel(dispatcher, chatTools, "dispatch", "chat.complete / chat.stream")
+Rel(graphTools, gdb, "read-only Cypher", "MATCH/RETURN; access_level по роли")
+Rel(vectorTools, vdb, "query_points / upsert", "RBAC-фильтр access_level")
+Rel(vectorTools, llm, "embed / rerank", "bge-m3 / Qwen2.5-7B")
+Rel(chatTools, orchestrator, "ainvoke", "user_query + user_role")
+Rel(chatTools, llm, "LLM-вызовы", "planner / synthesize / judge")
+Rel(orchestrator, gdb, "tool_executor: Cypher", "read-only")
+Rel(orchestrator, vdb, "RAG-fallback", "retriever + reranker")
+Rel(api, obs, "span", "tool, tokens, latency_ms, cache_hit, error_code")
+@enduml

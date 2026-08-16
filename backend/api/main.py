@@ -41,6 +41,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 # Импорт агента и Langfuse
 from backend.agents.multi_agent_graph import app as agent_app
 from backend.services.tool_registry import get_manifest
+from backend.services.tool_dispatcher import execute_tool
 
 # --- Prometheus-метрики (текстовый формат 0.0.4, без prometheus_client) ---
 import threading
@@ -470,6 +471,30 @@ def metrics():
         lines.append("# TYPE sov_chat_latency_seconds_total counter")
         lines.append(f"sov_chat_latency_seconds_total {_METRICS['sov_chat_latency_seconds_total']}")
     return PlainTextResponse("\n".join(lines) + "\n")
+
+class ToolCallRequest(BaseModel):
+    tool: str
+    arguments: dict = {}
+    user_role: str = "куратор"
+
+
+@app.post("/api/v1/tools/call")
+async def api_v1_tools_call(req: ToolCallRequest):
+    """Единая точка вызова инструмента (см. docs/diagrams/tool_call_sequence.puml).
+
+    Обёртка результата: {"ok": true, "data"} или HTTP-статус по SOV-коду:
+    422 - SOV-1xxx (валидация), 403 - SOV-4xxx (RBAC), 502 - SOV-3xxx (LLM),
+    503 - SOV-5xxx (инфраструктура).
+    """
+    result = execute_tool(req.tool, req.arguments or {}, req.user_role)
+    if not result["ok"]:
+        code = result["error"]["code"]
+        status = 422 if code.startswith("SOV-1") else (
+            403 if code.startswith("SOV-4") else 503 if code.startswith("SOV-5") else 502
+        )
+        raise HTTPException(status_code=status, detail=result["error"])
+    return {"result": result["data"]}
+
 
 # --- API v1: контрактная поверхность (см. docs/mcp_design.md) ---
 

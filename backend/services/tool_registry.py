@@ -118,7 +118,7 @@ TOOLS: Dict[str, Dict[str, Any]] = {
                 "user_role": {"type": "string", "enum": ["куратор", "специалист отдела", "admin"], "default": "куратор"},
             },
         },
-        "errorCodes": ["SOV-1001", "SOV-1003", "SOV-3001", "SOV-3002"],
+        "errorCodes": ["SOV-1001", "SOV-1002", "SOV-1003", "SOV-3001", "SOV-3002"],
     },
 }
 

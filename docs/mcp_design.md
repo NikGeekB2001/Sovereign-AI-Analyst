@@ -123,6 +123,30 @@
 
 ---
 
+### 3.4 Вызов инструмента (POST /api/v1/tools/call)
+
+Единая точка выполнения инструментов — `backend/services/tool_dispatcher.py`:
+
+```
+Клиент -> API Gateway (/api/v1/tools/call)
+       -> Tool Registry: validate_args (SOV-1001 / SOV-1003)
+       -> Tool Dispatcher: scopes роли (SOV-4001)
+       -> реализация: graph.query/schema | vector.search/rerank/upsert | chat.complete
+       -> ответ: {"ok": true, "data"} | {"ok": false, "error": {code, message, retryable}}
+```
+
+HTTP-статусы по коду ошибки: SOV-1xxx → 422, SOV-3xxx → 502, SOV-4xxx → 403,
+SOV-5xxx → 503. Диаграммы: `docs/diagrams/tool_call_sequence.puml/.svg`
+(секвенс) и `docs/C4_Model/Level_3_Component_ToolLayer.puml/.svg` (C4 Level 3).
+
+Пример:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{"tool": "graph.query", "arguments": {"query": "MATCH (a:LegalAct) RETURN a.act_id LIMIT 3"}, "user_role": "куратор"}'
+```
+
 ## 4. Онтология-контракт (данные)
 
 Контракт схемы данных — то, что раньше было «молчаливой» договорённостью загрузчика и ретривера (и расходилось — из-за этого система не отвечала до фиксов).
@@ -163,7 +187,7 @@
 
 | Диапазон | Домен | Примеры |
 |---|---|---|
-| SOV-1xxx | Конфигурация/валидация | SOV-1001 invalid args · SOV-1002 missing scope · SOV-1003 unknown tool |
+| SOV-1xxx | Конфигурация/валидация | SOV-1001 invalid args · SOV-1002 зарегистрирован, но не реализован (chat.stream до фазы 3) · SOV-1003 unknown tool (missing scope → SOV-4001) |
 | SOV-2xxx | Инструменты | SOV-2001 URL invalid · SOV-2002 scrape failed · SOV-2003 rate limited · SOV-2004 not found |
 | SOV-3xxx | LLM/провайдер | SOV-3001 timeout · SOV-3002 model unavailable · SOV-3003 JSON parse fail |
 | SOV-4xxx | RBAC/безопасность | SOV-4001 role denied · SOV-4002 PII redacted · SOV-4003 blocked query |

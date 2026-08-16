@@ -10,6 +10,7 @@
 - **AGENTS.md** - состав и взаимодействие агентов (7 узлов LangGraph, Plan-Observe-Act): роли, рёбра, данные между агентами, RBAC; визуализация - diagrams/agents_flow.puml / .svg
 - **evaluation/** - автооценка RAG-качества (RAGAS-стиль): backend/evaluation/ragas_metrics.py, run_evaluation.py, золотой набор test_dataset.jsonl, отчёты reports/
 - **PERFORMANCE_METRICS.md** - метрики производительности: качество RAG (RAGAS-стиль: faithfulness, answer_relevancy, context_precision/recall, hallucination_rate) и метрики системы (latency, токены, кэш, SOV-ошибки); автооценка через `backend/evaluation/run_evaluation.py` + золотой набор `test_dataset.jsonl`
+- **diagrams/tool_call_sequence.puml / .svg** - секвенс-диаграмма вызова тулов (POST /api/v1/tools/call): валидация, scopes, исполнение, SOV-ошибки
 - **diagrams/mcp_sequence.puml / .svg** - секвенс-диаграмма MCP-контракта: аутентификация, Tool Registry, конвейер агента, RBAC, SSE (PlantUML-исходник + готовый SVG-рендер)
 - **audit_2026-08-16.md** - Аудит репозитория и плана v2 по результатам живого E2E-прогона: доказанная работоспособность, 9 исправленных багов, риски, скорректированный roadmap
 
@@ -33,6 +34,7 @@
 - **Level_1_Context.puml** - Контекстная диаграмма уровня 1
 - **Level_2_Container.puml** - Диаграмма контейнеров уровня 2
 - **Level_3_Component_Agent.puml** - Компонентная диаграмма агента уровня 3
+- **Level_3_Component_ToolLayer.puml / .svg** - C4 Level 3: компоненты MCP Tool Layer (API Gateway -> Tool Registry -> Tool Dispatcher -> graph/vector/chat тулы)
 - **Sequence_Data_Flow.puml** - Диаграмма последовательности потока данных
 - **образец.puml** - Пример PlantUML диаграммы
 

@@ -1,0 +1,57 @@
+@startuml
+' Секвенс-диаграмма вызова тулов через MCP Tool Surface
+' Маршрут: API -> Tool Registry (валидация) -> Tool Dispatcher (scopes + исполнение)
+' Реализация: backend/services/tool_dispatcher.py, POST /api/v1/tools/call
+title Вызов инструмента: POST /api/v1/tools/call
+
+actor "Клиент\n(UI / агент)" as Client
+participant "FastAPI\nAPI Gateway" as API
+participant "Tool Registry" as TR
+participant "Tool Dispatcher" as TD
+participant "Graph Tools\n(cypher_guard)" as GT
+database "Neo4j" as Neo
+participant "Vector Tools\n(bge-m3)" as VT
+database "Qdrant" as Qdr
+participant "Chat Tools\n(LangGraph)" as CT
+participant "Langfuse" as LF
+
+' --- 1. Вход ---
+Client -> API : POST /api/v1/tools/call\n{"tool": "graph.query", "arguments": {...}, "user_role": "куратор"}
+API -> API : X-API-Key -> роль\n(переходно: user_role в теле запроса)
+
+' --- 2. Валидация (Tool Registry) ---
+API -> TR : validate_args("graph.query", arguments)
+TR --> API : OK\nили SOV-1001 (аргументы) / SOV-1003 (неизвестный tool)
+
+' --- 3. Scopes (Tool Dispatcher) ---
+API -> TD : execute_tool("graph.query", args, "куратор")
+TD -> TD : scopes роли: graph:read входит?\nнет -> SOV-4001 (deny + audit log)
+
+' --- 4. Исполнение graph.query ---
+TD -> GT : dispatch graph.query
+GT -> GT : is_safe_readonly_cypher(query)\n(CREATE/MERGE/DELETE -> отклонено)
+GT -> Neo : MATCH (a:LegalAct) RETURN a.act_id, a.title
+Neo --> GT : rows (access_level по роли)
+GT --> TD : {"ok": true, "data": rows}
+
+' --- 4a. Альтернатива: vector.search ---
+TD -> VT : dispatch vector.search
+VT -> Qdr : query_points (RBAC-фильтр access_level)
+Qdr --> VT : кандидаты public (для куратора)
+VT --> TD : {"ok": true, "data": docs}
+
+' --- 4b. Альтернатива: chat.complete ---
+TD -> CT : dispatch chat.complete
+CT -> CT : конвейер LangGraph (7 агентов)
+CT --> TD : {"ok": true, "data": {"answer": "..."}}
+
+' --- 5. Ответ и наблюдаемость ---
+TD --> API : {"ok": true, "data": ...}\n| {"ok": false, "error": {SOV-*, retryable}}
+API --> Client : JSON-ответ (200)\nили HTTP-статус по SOV (403/422/503)
+API -> LF : span: tool, args_hash, tokens, latency_ms, error_code
+
+note over API, TD
+  Единая обёртка результата: {"ok": bool, "data" | "error": {code, message, retryable}}
+  SOV-1002: chat.stream требует SSE-контракт (фаза 3)
+end note
+@enduml
