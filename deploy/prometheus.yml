@@ -9,27 +9,20 @@ rule_files:
 scrape_configs:
   - job_name: 'fastapi-app'
     static_configs:
-      - targets: ['api-gateway:8000']
+      # Локальный запуск API вне docker: host.docker.internal.
+      # При развёртывании через deploy/docker-compose.yml: 'api-gateway:8000'.
+      - targets: ['host.docker.internal:8000']
     metrics_path: '/metrics'
     scrape_interval: 5s
-    
+
   - job_name: 'qdrant'
     static_configs:
       - targets: ['qdrant:6333']
     metrics_path: '/metrics'
     scrape_interval: 10s
-    
-  - job_name: 'neo4j'
-    static_configs:
-      - targets: ['neo4j:7474']
-    scheme: 'http'
-    metrics_path: '/metrics'
-    scrape_interval: 10s
-    basic_auth:
-      username: 'neo4j'
-      password: 'password'
-      
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis:6379']
-    scrape_interval: 10s
+
+  # neo4j: /metrics недоступен в neo4j:5-community (Metrics Extension отсутствует)
+  # - job_name: 'neo4j'
+  #   static_configs:
+  #     - targets: ['neo4j:7474']
+  #   metrics_path: '/metrics'

@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-08-16T23:25:19",
+  "mode": "graph",
+  "role": "куратор",
+  "top_k": 5,
+  "llm": "qwen2.5:7b",
+  "dataset": "backend/evaluation/test_dataset.jsonl",
+  "items": [
+    {
+      "question": "Какие действующие законы связаны с налогами?",
+      "answer_len": 624,
+      "contexts": 7,
+      "retrieval_ms": 2429.1,
+      "answer_s": 211.4,
+      "faithfulness": 0.4,
+      "answer_relevancy": 0.807,
+      "context_precision": 1.0,
+      "context_recall": 1.0,
+      "hallucination_rate": 0.6
+    }
+  ],
+  "aggregate": {
+    "faithfulness": 0.4,
+    "answer_relevancy": 0.807,
+    "context_precision": 1.0,
+    "context_recall": 1.0,
+    "hallucination_rate": 0.6,
+    "avg_answer_s": 211.4,
+    "avg_retrieval_ms": 2429.1
+  }
+}

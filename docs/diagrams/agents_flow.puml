@@ -1,0 +1,25 @@
+@startuml
+' Взаимодействие агентов Sovereign-AI-Analyst (LangGraph, Plan-Observe-Act)
+' Источник: backend/agents/multi_agent_graph.py, docs/AGENTS.md
+title Агенты Sovereign-AI-Analyst: Plan-Observe-Act (7 узлов LangGraph)
+
+start
+
+:input_guardrail\n(PII, prompt injection, RBAC);
+if (заблокировано?) then (да)
+  stop
+else (нет)
+endif
+
+:planner\n(план шагов);
+repeat
+  :graph_query_planner\n(read-only Cypher по шагу);
+  :tool_executor\n(Cypher → Neo4j | RAG: retriever+reranker);
+  :security_guard\n(PII, RBAC, секрет-маркеры);
+repeat while (шаги плана остались?) is (да)
+->нет;
+
+:synthesize\n(финальный ответ);
+:output_guardrail\n(PII, RBAC);
+stop
+@enduml

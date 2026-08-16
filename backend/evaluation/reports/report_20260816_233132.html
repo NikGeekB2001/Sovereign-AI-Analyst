@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
+<title>Отчёт автооценки RAG (2026-08-16T23:25:19)</title>
+<style>
+ body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #f6f7f9; color: #1f2937; }
+ .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+ h1 { font-size: 22px; } .muted { color: #6b7280; font-size: 13px; }
+ .metrics { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+ .metric { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 16px; min-width: 130px; }
+ .m-label { font-size: 12px; color: #6b7280; } .m-val { font-size: 20px; font-weight: 700; }
+ table { width: 100%; border-collapse: collapse; background: #fff; font-size: 13px; }
+ th { background: #f1f5f9; text-align: left; padding: 8px; border-bottom: 2px solid #e2e8f0; }
+ td { padding: 8px; border-bottom: 1px solid #eef2f7; }
+</style></head><body><div class="wrap">
+<h1>Отчёт автооценки RAG (RAGAS-стиль)</h1>
+<div class="muted">mode=graph · role=куратор · top_k=5 · llm=qwen2.5:7b · 2026-08-16T23:25:19</div>
+<div class="metrics"><div class="metric"><div class="m-label">faithfulness</div><div class="m-val">0.4</div></div><div class="metric"><div class="m-label">answer_relevancy</div><div class="m-val">0.807</div></div><div class="metric"><div class="m-label">context_precision</div><div class="m-val">1.0</div></div><div class="metric"><div class="m-label">context_recall</div><div class="m-val">1.0</div></div><div class="metric"><div class="m-label">hallucination_rate</div><div class="m-val">0.6</div></div><div class="metric"><div class="m-label">avg_answer_s</div><div class="m-val">211.4</div></div><div class="metric"><div class="m-label">avg_retrieval_ms</div><div class="m-val">2429.1</div></div></div>
+<table><thead><tr><th>#</th><th>Вопрос</th><th>Faith</th><th>Rel</th><th>CP</th><th>CR</th><th>Halluc</th><th>Латентн.</th></tr></thead>
+<tbody><tr><td>1</td><td>Какие действующие законы связаны с налогами?</td><td>0.4</td><td>0.807</td><td>1.0</td><td>1.0</td><td>0.6</td><td>211.4с</td></tr></tbody></table>
+</div></body></html>

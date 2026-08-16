@@ -15,6 +15,7 @@ try:
 except Exception:
     pass
 from fastapi.responses import StreamingResponse
+from fastapi.responses import PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
@@ -40,6 +41,27 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 # Импорт агента и Langfuse
 from backend.agents.multi_agent_graph import app as agent_app
 from backend.services.tool_registry import get_manifest
+
+# --- Prometheus-метрики (текстовый формат 0.0.4, без prometheus_client) ---
+import threading
+_metrics_lock = threading.Lock()
+_METRICS = {
+    "sov_chat_requests_total": 0,
+    "sov_chat_errors_total": 0,
+    "sov_chat_latency_seconds_total": 0.0,
+}
+_ROLE_LABEL = {}
+
+
+def _inc_metric(name: str, delta: float = 1.0) -> None:
+    with _metrics_lock:
+        _METRICS[name] = round(_METRICS[name] + delta, 3)
+
+
+def _inc_role(role: str) -> None:
+    with _metrics_lock:
+        _ROLE_LABEL[role] = _ROLE_LABEL.get(role, 0) + 1
+
 
 # Импорт из langfuse_integration (используем абсолютный путь из корня проекта)
 from backend.api.langfuse_integration import (
@@ -232,6 +254,8 @@ async def chat(request: ChatRequest):
     """Endpoint для обычного JSON ответа."""
     # Запускаем таймер для измерения времени выполнения
     start_time = time.time()
+    _inc_metric("sov_chat_requests_total")
+    _inc_role(request.user_role)
     
     # Создаем трейс в Langfuse с универсальной функцией
     logger.info(f"Received chat request: {request.message[:100]}...")
@@ -355,9 +379,11 @@ async def chat(request: ChatRequest):
                 langfuse.flush()
             logger.info("Langfuse connection flushed after chat endpoint")
         
+        _inc_metric("sov_chat_latency_seconds_total", execution_time_ms / 1000.0)
         return response_data
         
     except Exception as e:
+        _inc_metric("sov_chat_errors_total")
         import traceback
         error_detail = traceback.format_exc()
         logger.error(f"ERROR in /chat endpoint: {str(e)}\n{error_detail}")
@@ -426,6 +452,24 @@ def health_check():
             "disk_usage_percent": disk_usage
         }
     }
+
+@app.get("/metrics")
+def metrics():
+    """Экспорт метрик для Prometheus (job 'fastapi-app' из deploy/prometheus.yml)."""
+    with _metrics_lock:
+        lines = [
+            "# HELP sov_chat_requests_total Всего запросов /chat и /api/v1/chat",
+            "# TYPE sov_chat_requests_total counter",
+        ]
+        for role, n in sorted(_ROLE_LABEL.items()):
+            lines.append(f'sov_chat_requests_total{{role="{role}"}} {n}')
+        lines.append("# HELP sov_chat_errors_total Ошибки обработки запросов")
+        lines.append("# TYPE sov_chat_errors_total counter")
+        lines.append(f"sov_chat_errors_total {_METRICS['sov_chat_errors_total']}")
+        lines.append("# HELP sov_chat_latency_seconds_total Суммарная латентность ответов, сек")
+        lines.append("# TYPE sov_chat_latency_seconds_total counter")
+        lines.append(f"sov_chat_latency_seconds_total {_METRICS['sov_chat_latency_seconds_total']}")
+    return PlainTextResponse("\n".join(lines) + "\n")
 
 # --- API v1: контрактная поверхность (см. docs/mcp_design.md) ---
 

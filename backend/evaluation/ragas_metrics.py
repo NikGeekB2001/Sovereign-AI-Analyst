@@ -157,7 +157,7 @@ class RagasEvaluator:
 
     # --- вызовы judge ---
     def _ask(self, prompt: str, max_tokens: int = 1024) -> str:
-        res = self.llm.chat(
+        res = self.llm.generate(
             prompt=prompt,
             system_prompt=SYS_JUDGE,
             temperature=self.temperature,

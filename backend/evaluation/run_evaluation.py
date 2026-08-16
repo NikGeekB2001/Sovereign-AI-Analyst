@@ -25,6 +25,11 @@ from typing import Dict, List
 
 from dotenv import load_dotenv
 
+# UTF-8 для stdout/stderr: печать с эмодзи падает на cp1251 (Windows)
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8", errors="replace")
+
 load_dotenv()  # .env: NEO4J_PASSWORD, LLM_MODEL, EMBEDDING_MODEL и т.д.
 
 from backend.evaluation.ragas_metrics import RagasEvaluator  # noqa: E402
@@ -34,7 +39,7 @@ REPORTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports"
 
 def load_dataset(path: str) -> List[Dict]:
     """JSONL (question, ground_truth, role?) или JSON-массив."""
-    with open(path, encoding="utf-8") as f:
+    with open(path, encoding="utf-8-sig") as f:  # utf-8-sig: устойчиво к BOM
         text = f.read().strip()
     if text.startswith("["):
         return json.loads(text)
@@ -47,16 +52,23 @@ def load_dataset(path: str) -> List[Dict]:
 
 
 def answer_via_graph(question: str, role: str) -> str:
+    """Полный конвейер агента в процессе (async-обёртка над ainvoke)."""
+    import asyncio
+
     from backend.agents.multi_agent_graph import app as agent_app
-    inputs = {"messages": [("user", question)], "user_role": role, "context": []}
-    result = agent_app.ainvoke(inputs, config={"recursion_limit": 50})
-    messages = result.get("messages", []) if result else []
-    if not messages:
-        return ""
-    last = messages[-1]
-    if isinstance(last, tuple):
-        return last[1] if len(last) > 1 else ""
-    return getattr(last, "content", "") or str(last)
+
+    async def _run() -> str:
+        inputs = {"messages": [("user", question)], "user_role": role, "context": []}
+        result = await agent_app.ainvoke(inputs, config={"recursion_limit": 50})
+        messages = result.get("messages", []) if result else []
+        if not messages:
+            return ""
+        last = messages[-1]
+        if isinstance(last, tuple):
+            return last[1] if len(last) > 1 else ""
+        return getattr(last, "content", "") or str(last)
+
+    return asyncio.run(_run())
 
 
 def answer_via_api(question: str, role: str, api_url: str) -> str:
