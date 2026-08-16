@@ -15,6 +15,14 @@ import sys
 import asyncio
 from contextlib import asynccontextmanager
 
+# Windows-консоль: переключаем stdout/stderr на UTF-8 (иначе эмодзи в print падают с UnicodeEncodeError)
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

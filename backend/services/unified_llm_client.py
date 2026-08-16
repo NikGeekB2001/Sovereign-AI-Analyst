@@ -64,7 +64,7 @@ class OllamaClient:
         
         try:
             import requests
-            response = requests.post(url, json=payload, timeout=60)
+            response = requests.post(url, json=payload, timeout=int(os.getenv("LLM_TIMEOUT", "60")))
             response.raise_for_status()
             
             result = response.json()
@@ -125,7 +125,7 @@ class OllamaClient:
         
         try:
             import requests
-            response = requests.post(url, json=payload, timeout=60)
+            response = requests.post(url, json=payload, timeout=int(os.getenv("LLM_TIMEOUT", "60")))
             response.raise_for_status()
             
             result = response.json()

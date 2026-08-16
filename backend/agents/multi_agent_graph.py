@@ -11,6 +11,14 @@ import os
 import hashlib
 import uuid
 import sys
+
+# Windows-консоль: переключаем stdout/stderr на UTF-8 (иначе эмодзи в print падают с UnicodeEncodeError)
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 from neo4j import GraphDatabase
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
@@ -459,6 +467,12 @@ def tool_executor_node(state: AgentState):
             cypher_query = (state.get("generated_query") or "").strip()
             cypher_query = re.sub(r'^```(?:cypher)?\s*|\s*```$', '', cypher_query).strip()
 
+            # Защита: выполняем только read-only Cypher, чтобы LLM не мог изменить граф
+            if not re.match(r'^(MATCH|OPTIONAL\s+MATCH|UNWIND|WITH|RETURN|SHOW|CALL)\b', cypher_query, re.IGNORECASE | re.DOTALL) \
+                    or re.search(r'\b(CREATE|MERGE|DELETE|SET|DROP|REMOVE|DETACH|LOAD CSV)\b', cypher_query, re.IGNORECASE | re.DOTALL):
+                print("⚠️ Сгенерированный Cypher невалиден/не read-only, пропускаю (fallback)")
+                cypher_query = ""
+
             user_role = state.get("user_role", "junior")
             # Определяем разрешенные уровни доступа для роли
             if user_role == "admin":
@@ -542,7 +556,7 @@ def tool_executor_node(state: AgentState):
         neo4j_driver.close()
 
     result = {
-        "context": state["context"] + new_context,
+        "context": list(dict.fromkeys(state["context"] + new_context)),
         "current_step_idx": state["current_step_idx"] + 1,
         "generated_query": ""
     }

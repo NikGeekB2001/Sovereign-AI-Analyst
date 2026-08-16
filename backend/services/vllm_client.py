@@ -153,7 +153,7 @@ class VLLMClient:
         start_time = time.time()  # For latency tracking
         
         try:
-            response = requests.post(url, json=payload, timeout=120)
+            response = requests.post(url, json=payload, timeout=int(os.getenv("LLM_TIMEOUT", "120")))
             
             if response.status_code == 404:
                 # If chat completion is not available, try completions
@@ -207,7 +207,7 @@ class VLLMClient:
         start_time = time.time()  # For latency tracking
         
         try:
-            response = requests.post(url, json=payload, timeout=120)
+            response = requests.post(url, json=payload, timeout=int(os.getenv("LLM_TIMEOUT", "120")))
             
             if response.status_code == 404:
                 # If completions API is not available either, raise an error
@@ -260,7 +260,7 @@ class VLLMClient:
         start_time = time.time()  # For latency tracking
         
         try:
-            response = requests.post(url, json=payload, timeout=120)
+            response = requests.post(url, json=payload, timeout=int(os.getenv("LLM_TIMEOUT", "120")))
             
             if response.status_code == 404:
                 # If basic generate is not available, try other endpoints

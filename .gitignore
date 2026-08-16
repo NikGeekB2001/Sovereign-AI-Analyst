@@ -95,3 +95,7 @@ ui/.files/
 # --- Misc ---
 *.tmp
 *.temp
+
+
+# --- Runtime volume data (docker compose mounts) ---
+infra/data/

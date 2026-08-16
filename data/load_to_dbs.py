@@ -31,7 +31,7 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
 QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-EMBEDDING_MODEL = "nomic-embed-text"
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 COLLECTION_NAME = "ruslawod"
 BATCH_SIZE = 50  # для пакетной вставки
 MAX_DOCS = int(os.getenv("MAX_DOCS", "500"))  # лимит документов
@@ -261,6 +261,10 @@ def insert_qdrant_batch(client: QdrantClient, docs: list[dict], embeddings: list
                     "status": doc["status"],
                     "authority": doc["authority"],
                     "text_preview": doc["text"][:500],
+                    # RBAC: public для широко используемых/действующих, иначе internal
+                    "access_level": os.getenv("ACCESS_LEVEL_DEFAULT", "public")
+                    if doc.get("is_widely_used") is not False
+                    else "internal",
                 },
             )
         )
