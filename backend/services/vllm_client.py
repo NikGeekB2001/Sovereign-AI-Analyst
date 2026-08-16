@@ -4,6 +4,7 @@ Provides a unified interface for interacting with vLLM server.
 Based on Langfuse integration specifications for model latency tracking.
 Supports various vLLM API implementations.
 """
+import os
 import requests
 import json
 from typing import Optional, List, Dict, Any
@@ -13,7 +14,7 @@ import time
 class VLLMClient:
     """Client for vLLM API with Langfuse compatibility."""
     
-    def __init__(self, base_url="http://localhost:8000", model="qwen2.5:3b"):
+    def __init__(self, base_url=None, model=None):
         """
         Initialize vLLM client.
         
@@ -21,8 +22,8 @@ class VLLMClient:
             base_url: vLLM server URL (default: http://localhost:8000)
             model: Model name to use (default: qwen2.5:3b)
         """
-        self.base_url = base_url
-        self.model = model
+        self.base_url = base_url or os.getenv("VLLM_BASE_URL", "http://localhost:8000")
+        self.model = model or os.getenv("LLM_MODEL", "qwen2.5:3b")
         self.api_version = self._detect_api_version()
     
     def _detect_api_version(self):

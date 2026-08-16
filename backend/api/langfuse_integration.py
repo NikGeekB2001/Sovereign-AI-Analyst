@@ -13,11 +13,16 @@ def initialize_langfuse():
     Инициализирует клиент Langfuse, если включена трассировка
     """
     if os.getenv("LANGFUSE_TRACING_ENABLED", "").lower() == "true":
+        pk = os.getenv("LANGFUSE_PUBLIC_KEY", "")
+        sk = os.getenv("LANGFUSE_SECRET_KEY", "")
+        if not (pk and sk):
+            print("Langfuse: LANGFUSE_PUBLIC_KEY/SECRET_KEY не заданы, трассировка отключена")
+            return None
         try:
             langfuse = Langfuse(
                 host=os.getenv("LANGFUSE_HOST", "http://localhost:3000"),
-                public_key=os.getenv("LANGFUSE_PUBLIC_KEY", ""),
-                secret_key=os.getenv("LANGFUSE_SECRET_KEY", "")
+                public_key=pk,
+                secret_key=sk
             )
             return langfuse
         except Exception as e:
@@ -49,65 +54,81 @@ def flush_langfuse():
         pass
 
 
-def create_trace_with_fallback(user_id: Optional[str] = None, session_id: Optional[str] = None, **kwargs):
+def create_trace_with_fallback(user_id: Optional[str] = None, session_id: Optional[str] = None,
+                               name: Optional[str] = None, input: Optional[Any] = None,
+                               output: Optional[Any] = None, metadata: Optional[Dict[str, Any]] = None,
+                               **kwargs):
     """
-    Создает трассировку с fallback-логикой
+    Создает трассировку с fallback-логикой (работает и без Langfuse).
     """
+    def _make_mock():
+        class MockSpan:
+            def __init__(self):
+                self.id = "mock-span-id"
+
+            def span(self, **kw):
+                return MockSpan()
+
+            def generation(self, **kw):
+                return MockGeneration()
+
+            def event(self, **kw):
+                return None
+
+            def update(self, **kw):
+                return self
+
+            def end(self, **kw):
+                return None
+
+        class MockGeneration:
+            def __init__(self):
+                self.id = "mock-generation-id"
+
+            def end(self, **kw):
+                return self
+
+            def update(self, **kw):
+                return self
+
+        class MockTrace:
+            def __init__(self, **params):
+                self.id = params.get("id", "mock-trace-id")
+
+            def span(self, **kw):
+                return MockSpan()
+
+            def generation(self, **kw):
+                return MockGeneration()
+
+            def event(self, **kw):
+                return None
+
+            def update(self, **kw):
+                return self
+
+            def get_langchain_handler(self):
+                return None
+
+        return MockTrace(**kwargs)
+
     try:
         langfuse = initialize_langfuse()
         if langfuse:
-            trace_params = {"user_id": user_id, "session_id": session_id}
+            trace_params = {
+                "user_id": user_id,
+                "session_id": session_id,
+                "name": name,
+                "input": input,
+                "output": output,
+                "metadata": metadata,
+            }
+            trace_params = {k: v for k, v in trace_params.items() if v is not None}
             trace_params.update(kwargs)
             return langfuse.trace(**trace_params)
-        else:
-            # Fallback: возвращаем mock-объект с минимальной функциональностью
-            class MockTrace:
-                def __init__(self, **params):
-                    self.id = params.get("id", "mock-trace-id")
-                
-                def span(self, **kwargs):
-                    return MockSpan()
-                    
-                def generation(self, **kwargs):
-                    return MockGeneration()
-            
-            class MockSpan:
-                def span(self, **kwargs):
-                    return MockSpan()
-                    
-                def end(self):
-                    pass
-            
-            class MockGeneration:
-                def end(self, **kwargs):
-                    return MockGeneration()
-                    
-            return MockTrace(**kwargs)
     except Exception as e:
         print(f"Ошибка создания трассировки: {e}")
-        # Возвращаем mock-объект в случае ошибки
-        class MockTrace:
-            def __init__(self, **params):
-                self.id = "fallback-trace-id"
-            
-            def span(self, **kwargs):
-                return MockSpan()
-                
-            def generation(self, **kwargs):
-                return MockGeneration()
-        
-        class MockSpan:
-            def span(self, **kwargs):
-                return MockSpan()
-                
-            def end(self):
-                pass
-        
-        class MockGeneration:
-            def end(self, **kwargs):
-                return MockGeneration()
-                
-        return MockTrace(**kwargs)
+    return _make_mock()
 
 
 def log_user_interaction(user_id: str, query: str, response: str, metadata: Optional[Dict[str, Any]] = None):
@@ -209,11 +230,13 @@ def log_performance_metrics(name: str, value: float, unit: str = "", metadata: O
     try:
         langfuse = initialize_langfuse()
         if langfuse:
+            meta = dict(metadata) if metadata else {}
+            if unit:
+                meta["unit"] = unit
             langfuse.score(
                 name=name,
                 value=value,
-                unit=unit,
-                metadata=metadata
+                metadata=meta
             )
     except Exception as e:
         print(f"Ошибка логирования метрик производительности: {e}")

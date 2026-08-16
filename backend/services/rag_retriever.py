@@ -1,6 +1,11 @@
 """
 RAG Retriever & Reranker for SovereignAI Analyst.
 Implements semantic search with Qdrant + semantic reranking.
+
+Схема согласована с data/load_to_dbs.py:
+  Qdrant collection: ruslawod (env: QDRANT_COLLECTION)
+  payload: act_id, title, doc_type, date, status, authority, text_preview, access_level
+  Эмбеддинги: nomic-embed-text через Ollama /api/embed (768 dims)
 """
 
 import os
@@ -10,66 +15,76 @@ from qdrant_client.http import models
 import requests
 import numpy as np
 
+
 class RAGRetriever:
     """Semantic retriever using local embedding model."""
-    
-    def __init__(self, qdrant_url: str = "http://localhost:6333", 
-                 collection_name: str = "legal_documents",
-                 embedding_model_url: str = "http://localhost:11434"):
+
+    def __init__(self, qdrant_url: str = None,
+                 collection_name: str = None,
+                 embedding_model_url: str = None,
+                 embedding_model: str = None):
+        qdrant_url = qdrant_url or os.getenv(
+            "QDRANT_URL",
+            f"http://{os.getenv('QDRANT_HOST', 'localhost')}:{os.getenv('QDRANT_PORT', '6333')}",
+        )
         self.qdrant_client = QdrantClient(url=qdrant_url)
-        self.collection_name = collection_name
-        self.embedding_model_url = embedding_model_url
-        self.vector_size = 384  # all-MiniLM-L6-v2 размерность
-    
+        self.collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "ruslawod")
+        self.embedding_model_url = embedding_model_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.embedding_model = embedding_model or os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+        self.vector_size = 768  # nomic-embed-text
+
     def get_embedding(self, text: str) -> List[float]:
-        """Получение эмбеддинга через Ollama (nomic-embed-text)."""
+        """Получение эмбеддинга через Ollama (/api/embed, nomic-embed-text)."""
         try:
             response = requests.post(
-                f"{self.embedding_model_url}/api/embeddings",
+                f"{self.embedding_model_url}/api/embed",
                 json={
-                    "model": "nomic-embed-text",
-                    "prompt": text
+                    "model": self.embedding_model,
+                    "input": text
                 },
-                timeout=10
+                timeout=30
             )
             response.raise_for_status()
-            return response.json()["embedding"]
+            embeddings = response.json().get("embeddings") or []
+            if embeddings:
+                return embeddings[0]
+            raise ValueError("Пустой ответ эмбеддинга")
         except Exception as e:
-            print(f"️ Ошибка получения эмбеддинга: {e}")
-            # Fallback: используем простой хеш-вектор
+            print(f"⚠️ Ошибка получения эмбеддинга: {e}")
+            # Fallback: хеш-вектор той же размерности (768)
             return self._fallback_embedding(text)
-    
+
     def _fallback_embedding(self, text: str) -> List[float]:
-        """Fallback эмбеддинг на основе хеша текста."""
+        """Fallback эмбеддинг на основе хеша текста (размерность 768)."""
         import hashlib
-        hash_obj = hashlib.md5(text.encode())
+        hash_obj = hashlib.md5(text.encode("utf-8"))
         hash_bytes = hash_obj.digest()
-        # Создаем вектор из хеша
         vector = list(np.frombuffer(hash_bytes, dtype=np.uint8).astype(float) / 255.0)
-        # Дополняем до 384
-        vector = vector * (384 // len(vector)) + vector[:384 % len(vector)]
+        # Повторяем до 768
+        vector = (vector * (self.vector_size // len(vector)) +
+                  vector[: self.vector_size % len(vector)])
         return vector
-    
-    def retrieve(self, query: str, user_role: str = "junior", 
-                 top_k: int = 3, min_score: float = 0.5) -> List[Dict[str, Any]]:
+
+    def retrieve(self, query: str, user_role: str = "junior",
+                 top_k: int = 3, min_score: float = 0.3) -> List[Dict[str, Any]]:
         """
         Поиск релевантных документов в Qdrant.
-        
+
         Args:
             query: Поисковый запрос
             user_role: Роль пользователя (для RBAC)
             top_k: Количество результатов
             min_score: Минимальный порог похожести
-            
+
         Returns:
             Список документов с метаданными
         """
         print(f"🔍 Retriever: Поиск по запросу '{query[:50]}...'")
-        
+
         # 1. Получаем эмбеддинг запроса
         query_vector = self.get_embedding(query)
-        
-        # 2. Формируем фильтр по RBAC
+
+        # 2. Формируем фильтр по RBAC (поле access_level в payload)
         rbac_filter = None
         if user_role == "admin":
             rbac_filter = models.Filter(must=[
@@ -83,7 +98,7 @@ class RAGRetriever:
             rbac_filter = models.Filter(must=[
                 models.FieldCondition(key="access_level", match=models.MatchValue(value="public"))
             ])
-        
+
         # 3. Поиск в Qdrant
         try:
             search_results = self.qdrant_client.query_points(
@@ -94,56 +109,57 @@ class RAGRetriever:
                 with_payload=True,
                 with_vectors=False
             )
-            
+
             points = search_results.points if hasattr(search_results, 'points') else []
-            
+
             # 4. Фильтрация по минимальному score
             filtered_results = []
             for point in points:
                 if point.score >= min_score:
                     filtered_results.append({
                         "id": point.id,
-                        "text": point.payload.get("text", ""),
+                        "text": point.payload.get("text_preview", ""),
                         "doc_type": point.payload.get("doc_type", ""),
-                        "contract_id": point.payload.get("contract_id", ""),
+                        "act_id": point.payload.get("act_id", ""),
                         "score": point.score,
-                        "access_level": point.payload.get("access_level", "")
+                        "access_level": point.payload.get("access_level", "public")
                     })
-            
-            print(f" Retriever: Найдено {len(filtered_results)} документов")
+
+            print(f"✅ Retriever: Найдено {len(filtered_results)} документов")
             return filtered_results
-            
+
         except Exception as e:
-            print(f" Ошибка поиска в Qdrant: {e}")
+            print(f"⚠️ Ошибка поиска в Qdrant: {e}")
             return []
 
 
 class RAGReranker:
     """Семантический реранкер для улучшения результатов поиска."""
-    
-    def __init__(self, reranker_model_url: str = "http://localhost:11434"):
-        self.model_url = reranker_model_url
-    
-    def rerank(self, query: str, documents: List[Dict[str, Any]], 
+
+    def __init__(self, reranker_model_url: str = None, model: str = None):
+        self.model_url = reranker_model_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.model = model or os.getenv("RERANKER_MODEL", "qwen2.5:7b")
+
+    def rerank(self, query: str, documents: List[Dict[str, Any]],
                top_k: int = 2) -> List[Dict[str, Any]]:
         """
         Реранкинг документов по релевантности запросу.
-        
+
         Использует LLM для оценки релевантности каждого документа.
-        
+
         Args:
             query: Исходный запрос
             documents: Список документов от retriever
             top_k: Количество топ результатов
-            
+
         Returns:
             Отсортированный список документов
         """
         if not documents:
             return []
-        
+
         print(f"🔄 Reranker: Оценка {len(documents)} документов...")
-        
+
         # Для каждого документа оцениваем релевантность через LLM
         scored_docs = []
         for doc in documents:
@@ -153,20 +169,20 @@ class RAGReranker:
             doc["combined_score"] = combined_score
             doc["relevance_score"] = relevance_score
             scored_docs.append(doc)
-        
+
         # Сортируем по combined_score
         scored_docs.sort(key=lambda x: x["combined_score"], reverse=True)
-        
+
         # Возвращаем топ-K
         results = scored_docs[:top_k]
         print(f"🔄 Reranker: Возвращено {len(results)} документов")
-        
+
         return results
-    
+
     def _calculate_relevance(self, query: str, document_text: str) -> float:
         """
         Оценка релевантности документа запросу через LLM.
-        
+
         Returns:
             Score от 0.0 до 1.0
         """
@@ -188,7 +204,7 @@ class RAGReranker:
             response = requests.post(
                 f"{self.model_url}/api/generate",
                 json={
-                    "model": "qwen2.5:7b",
+                    "model": self.model,
                     "prompt": prompt,
                     "stream": False,
                     "options": {
@@ -200,16 +216,16 @@ class RAGReranker:
             )
             response.raise_for_status()
             result = response.json()["response"].strip()
-            
+
             # Парсим число из ответа
             import re
             match = re.search(r'(\d+\.\d+|\d+)', result)
             if match:
                 score = float(match.group(1))
                 return max(0.0, min(1.0, score))  # Ограничиваем [0, 1]
-            
+
             return 0.5  # Default score
-            
+
         except Exception as e:
             print(f"⚠️ Ошибка реранкинга: {e}")
             return 0.5  # Default score
@@ -219,12 +235,14 @@ class RAGReranker:
 _retriever = None
 _reranker = None
 
+
 def get_retriever() -> RAGRetriever:
     """Получить или создать RAGRetriever."""
     global _retriever
     if _retriever is None:
         _retriever = RAGRetriever()
     return _retriever
+
 
 def get_reranker() -> RAGReranker:
     """Получить или создать RAGReranker."""

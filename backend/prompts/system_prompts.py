@@ -13,22 +13,22 @@ PLANNER_PROMPT = """Ты — Planner Agent корпоративной систе
 4. Каждый шаг должен быть конкретным действием
 
 ДОСТУПНЫЕ ДАННЫЕ:
-- Neo4j: Компании (Company), Договоры (Contract с полями: id, title, amount, risk_level)
-- Qdrant: Тексты документов, аналитика, риски
+- Neo4j: Правовые акты (LegalAct с полями: act_id, title, doc_type, date, status), Органы власти (Authority), Ключевые слова (Keyword)
+- Qdrant: Тексты актов, семантический поиск по корпусу RusLawOD
 
 ПРИМЕРЫ:
-Запрос: "Найди договоры с высоким риском"
-План: ["Поиск договоров в Neo4j с risk_level='высокий'"]
+Запрос: "Найди акты, изданные Минфином"
+План: ["Поиск актов по органу власти в Neo4j", "Поиск текстов актов в Qdrant"]
 
-Запрос: "Какие документы у ООО Ромашка?"
-План: ["Поиск компании 'ООО Ромашка' в Neo4j", "Получение связанных договоров"]
+Запрос: "Какие правовые акты действуют сейчас?"
+План: ["Поиск действующих актов в Neo4j"]
 
-Запрос: "Покажи риски в договоре DOG-001"
-План: ["Поиск договора DOG-001 в Neo4j", "Поиск информации о рисках в Qdrant"]
+Запрос: "Покажи акты, связанные с налогами"
+План: ["Поиск актов по ключевому слову в Neo4j", "Поиск текстов актов в Qdrant"]
 
 ВАЖНО:
 - Если запрос простой - создай ТОЛЬКО ОДИН шаг
-- Не добавляй шаги "проверка сумм" или "анализ" - это делает Synthesizer
+- Не добавляй шаги "проверка" или "анализ" - это делает Synthesizer
 - Фокусируйся на ПОИСКЕ данных, а не на анализе
 
 Верни строго JSON массив строк.
@@ -40,33 +40,30 @@ GRAPH_QUERY_PLANNER_PROMPT = """Ты — GraphQueryPlanner. Ты эксперт 
 ПОЛНАЯ СХЕМА ГРАФА:
 
 УЗЛЫ:
-- Company (inn, name, city) - компании
-- Contract (id, title, amount, risk_level) - договоры, где risk_level: 'высокий', 'средний', 'низкий'
-- LegalAct (id, name) - законодательные акты
-- Article (id, title, access_level) - статьи с уровнем доступа: 'public', 'internal', 'restricted'
+- LegalAct (act_id, title, doc_type, doc_number, date, status, is_widely_used, classifier, access_level) - правовые акты
+- Authority (name) - органы власти
+- Keyword (value) - ключевые слова
 
 СВЯЗИ:
-- (Company)-[:HAS_CONTRACT {since}]->(Contract) - компания имеет договор
-- (Company)-[:PARTNERSHIP {type, since}]->(Company) - партнерство между компаниями
-- (Company)-[:SUBSIDIARY {ownership}]->(Company) - дочерняя компания
-- (Article)-[:MENTIONS]->(Company) - статья упоминает компанию
-- (LegalAct)-[:CITES]->(Article) - акт цитирует статью
+- (LegalAct)-[:ISSUED_BY]->(Authority) - акт издан органом власти
+- (LegalAct)-[:HAS_KEYWORD]->(Keyword) - акт имеет ключевое слово
+- (LegalAct)-[:REFERENCES]->(LegalAct) - акт ссылается на другой акт
 
 ВАЖНЫЕ ПРАВИЛА:
-1. ВСЕГДА проверяй, какой узел нужен по запросу: Contract (id, title, amount), Company (inn, name), Article (id, title, access_level), LegalAct (id, name)
-2. Для поиска договоров: MATCH (c:Contract) WHERE c.id = 'DOG-001' RETURN c
-3. Для поиска по риску: MATCH (c:Contract) WHERE c.risk_level = 'высокий' RETURN c.title, c.amount, c.risk_level
-4. Для связей компаний: MATCH (c:Company {name: 'ООО Ромашка'})-[:HAS_CONTRACT]->(contract:Contract) RETURN contract.title, contract.amount
-5. Учитывай access_level у Article: 'public' (все видят), 'internal' (сотрудники), 'restricted' (админ)
-6. НЕ путай Contract с Article или LegalAct - это разные узлы!
-7. Contract имеет поля: id, title, amount, risk_level
-8. Article имеет поля: id, title, access_level
+1. LegalAct имеет поля: act_id, title, doc_type, doc_number, date, status
+2. Authority имеет поле: name
+3. Keyword имеет поле: value
+4. Все акты имеют access_level: 'public', 'internal' или 'restricted'
+5. При поиске по органу власти: MATCH (a:LegalAct)-[:ISSUED_BY]->(auth:Authority) WHERE toLower(auth.name) CONTAINS toLower('минфин') RETURN a.title, a.date
+6. При поиске по ключевому слову: MATCH (a:LegalAct)-[:HAS_KEYWORD]->(k:Keyword) WHERE toLower(k.value) CONTAINS toLower('налог') RETURN a.title, a.status
+7. При поиске актов: MATCH (a:LegalAct) WHERE a.status = 'действующий' RETURN a.act_id, a.title, a.date, a.status
+8. НЕ выдумывай поля, которых нет в схеме
 9. Верни только код Cypher без пояснений, заключи в ```cypher ... ```
 
 Примеры:
-- "Покажи договоры с высоким риском" → MATCH (c:Contract) WHERE c.risk_level = 'высокий' RETURN c.id, c.title, c.amount, c.risk_level
-- "Какие документы у ООО Ромашка?" → MATCH (company:Company {name: 'ООО Ромашка'})-[:HAS_CONTRACT]->(contract:Contract) RETURN contract.title, contract.amount, contract.risk_level
-- "Найди связанную компанию" → MATCH (c1:Company {name: 'ООО Ромашка'})-[:PARTNERSHIP]->(c2:Company) RETURN c2.name, c2.inn
+- "Найди акты, изданные Минфином" → MATCH (a:LegalAct)-[:ISSUED_BY]->(auth:Authority) WHERE toLower(auth.name) CONTAINS toLower('минфин') RETURN a.act_id, a.title, a.doc_type, a.date
+- "Какие акты действуют сейчас?" → MATCH (a:LegalAct) WHERE a.status = 'действующий' RETURN a.act_id, a.title, a.date, a.status
+- "Покажи акты, связанные с налогами" → MATCH (a:LegalAct)-[:HAS_KEYWORD]->(k:Keyword) WHERE toLower(k.value) CONTAINS toLower('налог') RETURN a.act_id, a.title, a.date, a.status
 """
 
 SYNTHESIZER_PROMPT = """Ты — Synthesizer Agent. Твоя задача — собрать финальный ответ для пользователя.

@@ -27,11 +27,22 @@ from backend.prompts import (
     JUDGE_QUALITY_PROMPT
 )
 
-# Import Ollama client
-from backend.services.llm_client import get_ollama_client
+# Unified LLM client (backend: ollama | vllm)
+from backend.services.unified_llm_client import get_unified_client
 
-# Initialize Ollama client
-ollama_client = get_ollama_client(model=os.getenv("LLM_MODEL", "qwen2.5-coder:3b"))
+
+def _llm_text(result):
+    """Нормализует результат LLM-клиента в plain text (dict или str)."""
+    if isinstance(result, dict):
+        return result.get("response", "")
+    return str(result)
+
+
+# Initialize LLM client
+llm_client = get_unified_client(
+    backend=os.getenv("LLM_BACKEND", "ollama"),
+    model=os.getenv("LLM_MODEL", "qwen2.5:3b")
+)
 
 # Simple Cache for MVP (Optimization Guide)
 response_cache = {}
@@ -50,23 +61,22 @@ try:
     
     # Инициализация клиента Langfuse
     langfuse = Langfuse(
-        public_key=os.getenv("LANGFUSE_PUBLIC_KEY", "pk-lf-e16dd186-b63f-4d5d-8540-5c9a360d45b4"),
-        secret_key=os.getenv("LANGFUSE_SECRET_KEY", "sk-lf-34070a5e-2942-46a5-a9b5-d414519fae54"),
+        public_key=os.getenv("LANGFUSE_PUBLIC_KEY", ""),
+        secret_key=os.getenv("LANGFUSE_SECRET_KEY", ""),
         host=os.getenv("LANGFUSE_HOST", "http://localhost:3000")
     )
     
-    # Langfuse API v3.14.6 больше не использует CallbackHandler
-    langfuse_handler = None
-except ImportError:
+except Exception:
     langfuse = None
-    langfuse_handler = None
 
 # Определение состояния графа (State Schema)
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
     plan: List[str]               # План действий от Planner Agent
     current_step_idx: int         # Текущий шаг
-    context: Annotated[list, add_messages] # Накопленный контекст (Best Practice)
+    context: List[str]            # Накопленный контекст (плоский список, без add_messages)
+    generated_query: str          # Cypher от GraphQueryPlanner
+    blocked: bool                 # Флаг блокировки Input Guardrail
     user_role: str                # Для RBAC (junior, senior, admin)
 
 def input_guardrail_node(state: AgentState):
@@ -111,8 +121,7 @@ def input_guardrail_node(state: AgentState):
         if pattern.lower() in user_query.lower():
             guard_result = {
                 "messages": [("assistant", "Запрос отклонен: обнаружена попытка нарушения безопасности.")],
-                "context": [],
-                "user_role": state.get("user_role", "junior")
+                "blocked": True
             }
             
             # Завершаем трассировку
@@ -122,7 +131,7 @@ def input_guardrail_node(state: AgentState):
                 
             return guard_result
     
-    result = {"messages": state["messages"], "user_role": state.get("user_role", "junior")}
+    result = {"blocked": False}
     
     # Завершаем трассировку
     if langfuse and 'span' in locals():
@@ -212,7 +221,7 @@ def output_guardrail_node(state: AgentState):
         if re.search(inn_pattern, response):
             response = "[ДАННЫЕ ЗАЩИЩЕНЫ ПОЛИТИКОЙ RBAC]"
     
-    result = {"messages": list(messages[:-1]) + [("assistant", response)]}
+    result = {"messages": [("assistant", response)]}
     
     # Завершаем трассировку
     if langfuse and 'span' in locals():
@@ -259,13 +268,13 @@ def planner_node(state: AgentState):
     result = {"plan": ["1. Поиск информации", "2. Анализ данных"], "current_step_idx": 0}
     
     try:
-        # Call Ollama with JSON mode
-        response = ollama_client.generate(
+        # Call LLM with JSON mode
+        response = _llm_text(llm_client.generate(
             prompt=f"Запрос пользователя: {user_query}\n\nСоздай план действий в формате JSON списка.",
             system_prompt=PLANNER_PROMPT,
             json_mode=True,
             temperature=0.3
-        )
+        ))
         
         # Parse JSON response
         try:
@@ -319,22 +328,21 @@ def graph_query_planner_node(state: AgentState):
         )
     
     # Инициализируем result заранее
-    result = {"context": [f"[Generated Query]: MATCH (n) RETURN n LIMIT 5"]}
+    result = {"generated_query": "MATCH (a:LegalAct) RETURN a LIMIT 5"}
     
     try:
-        # Generate Cypher query using Ollama
-        cypher_query = ollama_client.generate(
+        # Generate Cypher query using LLM
+        cypher_query = _llm_text(llm_client.generate(
             prompt=f"Шаг плана: {step}\n\nСгенерируй Cypher запрос для Neo4j.",
             system_prompt=GRAPH_QUERY_PLANNER_PROMPT,
             temperature=0.2
-        )
+        ))
         
         print(f"✅ Сгенерирован Cypher: {cypher_query[:100]}...")
-        result = {"context": [f"[Generated Query]: {cypher_query}"]}
+        result = {"generated_query": cypher_query}
     except Exception as e:
         print(f"⚠️ Ошибка генерации запроса: {e}")
-        fallback_query = "MATCH (n) RETURN n LIMIT 5"
-        result = {"context": [f"[Generated Query]: {fallback_query}"]}
+        result = {"generated_query": "MATCH (a:LegalAct) RETURN a LIMIT 5"}
     
     # Завершаем трассировку для GraphQueryPlanner узла
     if langfuse and 'span' in locals():
@@ -445,96 +453,85 @@ def tool_executor_node(state: AgentState):
             print(f"⚠️ Ошибка RAG pipeline: {e}")
             new_context.append(f"[Qdrant Error]: {str(e)}")
         
-        # 2. Поиск в Neo4j на основе сгенерированного Cypher
+        # 2. Поиск в Neo4j: выполняем сгенерированный Cypher, иначе fallback по схеме LegalAct
         try:
-            cypher_query = None
-            # Извлекаем Cypher из последнего сообщения если есть
             import re
-            cypher_match = re.search(r'```cypher\s*(.+?)```', last_msg_content, re.DOTALL)
-            if cypher_match:
-                cypher_query = cypher_match.group(1).strip()
-            
+            cypher_query = (state.get("generated_query") or "").strip()
+            cypher_query = re.sub(r'^```(?:cypher)?\s*|\s*```$', '', cypher_query).strip()
+
+            user_role = state.get("user_role", "junior")
+            # Определяем разрешенные уровни доступа для роли
+            if user_role == "admin":
+                allowed_access = ["public", "internal", "restricted"]
+            elif user_role == "senior":
+                allowed_access = ["public", "internal"]
+            else:
+                allowed_access = ["public"]
+
             if cypher_query:
-                print(f"🕸️ Neo4j: Выполняем Cypher запрос...")
+                print(f"🕸️ Neo4j: Выполняем сгенерированный Cypher запрос...")
                 with neo4j_driver.session() as session:
                     result_neo4j = session.run(cypher_query)
                     records = list(result_neo4j)
-                    
+
                     if records:
                         for record in records:
                             new_context.append(f"[Neo4j]: {dict(record)}")
                     else:
                         new_context.append("[Neo4j]: Запрос не вернул результатов")
             else:
-                # Fallback: интеллектуальный запрос на основе контекста
+                # Fallback: интеллектуальные запросы по схеме LegalAct/Authority/Keyword
                 print("🕸️ Neo4j: Используем интеллектуальный fallback запрос")
-                user_role = state["user_role"]
-
-                # Определяем разрешенные уровни доступа для роли
-                if user_role == "admin":
-                    allowed_access = ["public", "internal", "restricted"]
-                elif user_role == "senior":
-                    allowed_access = ["public", "internal"]
-                else:
-                    allowed_access = ["public"]
+                q = query_for_analysis.lower()
 
                 with neo4j_driver.session() as session:
-                    # Проверяем, связан ли запрос с рисками
-                    if "риск" in query_for_analysis.lower() or "высокий риск" in query_for_analysis.lower():
-                        # Запрос для поиска рисков с RBAC фильтрацией
+                    if "риск" in q:
+                        # Акты по ключевому слову 'риск'
                         result_neo4j = session.run(
-                            "MATCH (d:Contract)-[:HAS_RISK]->(r:Risk) "
-                            "WHERE r.level = 'high' AND d.access_level IN $allowed_access "
-                            "RETURN d.contract_id, d.name, d.amount, d.access_level, r.level, r.description "
+                            "MATCH (a:LegalAct)-[:HAS_KEYWORD]->(k:Keyword) "
+                            "WHERE toLower(k.value) CONTAINS 'риск' AND a.access_level IN $allowed_access "
+                            "RETURN a.act_id, a.title, a.doc_type, a.date, a.status "
                             "LIMIT 10",
                             allowed_access=allowed_access
                         )
                         for record in result_neo4j:
-                            new_context.append(
-                                f"[Neo4j High Risk Contract]: {dict(record)}"
-                            )
+                            new_context.append(f"[Neo4j Risk Act]: {dict(record)}")
 
-                    # Проверяем, связан ли запрос с компаниями
-                    elif "компани" in query_for_analysis.lower() or "связан" in query_for_analysis.lower():
+                    elif "компани" in q or "связан" in q or "орган" in q or "власт" in q:
+                        # Акты по органу власти
                         result_neo4j = session.run(
-                            "MATCH (c:Company)-[:HAS_CONTRACT]->(d:Contract) "
-                            "WHERE d.access_level IN $allowed_access "
-                            "RETURN c.name, c.inn, c.status, d.contract_id, d.name, d.amount "
+                            "MATCH (a:LegalAct)-[:ISSUED_BY]->(auth:Authority) "
+                            "WHERE a.access_level IN $allowed_access "
+                            "RETURN auth.name, a.act_id, a.title, a.doc_type, a.date "
                             "LIMIT 10",
                             allowed_access=allowed_access
                         )
                         for record in result_neo4j:
-                            new_context.append(
-                                f"[Neo4j Company Contract]: {dict(record)}"
-                            )
+                            new_context.append(f"[Neo4j Authority Act]: {dict(record)}")
 
-                    # Проверяем, связан ли запрос с документами
-                    elif "документ" in query_for_analysis.lower() or "договор" in query_for_analysis.lower():
+                    elif "документ" in q or "договор" in q or "акт" in q:
+                        # Свежие акты
                         result_neo4j = session.run(
-                            "MATCH (d:Contract) "
-                            "WHERE d.access_level IN $allowed_access "
-                            "RETURN d.contract_id, d.name, d.amount, d.status, d.access_level, d.description "
-                            "LIMIT 10",
+                            "MATCH (a:LegalAct) "
+                            "WHERE a.access_level IN $allowed_access "
+                            "RETURN a.act_id, a.title, a.doc_type, a.date, a.status "
+                            "ORDER BY a.date DESC LIMIT 10",
                             allowed_access=allowed_access
                         )
                         for record in result_neo4j:
-                            new_context.append(
-                                f"[Neo4j Document]: {dict(record)}"
-                            )
+                            new_context.append(f"[Neo4j LegalAct]: {dict(record)}")
 
-                    # Общий запрос - возвращаем контракты с рисками
                     else:
+                        # Общий запрос
                         result_neo4j = session.run(
-                            "MATCH (d:Contract) "
-                            "WHERE d.access_level IN $allowed_access "
-                            "RETURN d.contract_id, d.name, d.amount, d.status, d.access_level "
+                            "MATCH (a:LegalAct) "
+                            "WHERE a.access_level IN $allowed_access "
+                            "RETURN a.act_id, a.title, a.doc_type, a.date, a.status "
                             "LIMIT 5",
                             allowed_access=allowed_access
                         )
                         for record in result_neo4j:
-                            new_context.append(
-                                f"[Neo4j Contract]: {dict(record)}"
-                            )
+                            new_context.append(f"[Neo4j LegalAct]: {dict(record)}")
         except Exception as e:
             print(f"⚠️ Ошибка Neo4j: {e}")
             new_context.append(f"[Neo4j Error]: {str(e)}")
@@ -545,8 +542,9 @@ def tool_executor_node(state: AgentState):
         neo4j_driver.close()
 
     result = {
-        "context": state["context"] + new_context, 
-        "current_step_idx": state["current_step_idx"] + 1
+        "context": state["context"] + new_context,
+        "current_step_idx": state["current_step_idx"] + 1,
+        "generated_query": ""
     }
 
     # Завершаем трассировку для ToolExecutor узла
@@ -672,13 +670,13 @@ def synthesize_node(state: AgentState):
     result = {"messages": [response_msg]}
     
     try:
-        # Generate final answer using Ollama
-        final_response = ollama_client.generate(
+        # Generate final answer using LLM
+        final_response = _llm_text(llm_client.generate(
             prompt=f"Вопрос пользователя: {user_query}\n\nКонтекст:\n{context_text}",
             system_prompt=SYNTHESIZER_PROMPT,
             temperature=0.5,
             max_tokens=1024
-        )
+        ))
         
         print(f"✅ Ответ сгенерирован ({len(final_response)} символов)")
         response_msg = ("assistant", final_response)
@@ -703,6 +701,13 @@ def synthesize_node(state: AgentState):
     return result
 
 # --- Функции маршрутизации (Pure Functions) ---
+
+def route_after_guardrail(state: AgentState) -> Literal["planner", "end"]:
+    """Router: блокирующий запрос завершает поток сразу, иначе — planner."""
+    if state.get("blocked"):
+        print("🚫 Запрос заблокирован Input Guardrail, поток завершён.")
+        return "end"
+    return "planner"
 
 def decide_next_step(state: AgentState) -> Literal["graph_query_planner", "synthesize"]:
     """Router: решает, выполнять ли следующий шаг или переходить к синтезу."""
@@ -731,8 +736,12 @@ workflow.add_node("output_guardrail", output_guardrail_node)
 # Устанавливаем точку входа
 workflow.set_entry_point("input_guardrail")
 
-# Добавляем ребра
-workflow.add_edge("input_guardrail", "planner")
+# Добавляем ребра: guardrail блокирует поток или передаёт в planner
+workflow.add_conditional_edges(
+    "input_guardrail",
+    route_after_guardrail,
+    {"planner": "planner", "end": END}
+)
 
 workflow.add_conditional_edges(
     "planner", 
@@ -766,8 +775,7 @@ if __name__ == "__main__":
     }
     
     config = {}
-    if langfuse_handler:
-        # В новой версии Langfuse используем tracing по-другому
+    if langfuse:
         print("📊 Трейсинг Langfuse активирован. Откройте http://localhost:3000")
     
     for event in app.stream(inputs, config=config):

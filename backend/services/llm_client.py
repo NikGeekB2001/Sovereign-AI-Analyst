@@ -2,6 +2,7 @@
 Ollama Client for LLM inference.
 Provides a unified interface for interacting with local Ollama server.
 """
+import os
 import requests
 import json
 from typing import Optional, List, Dict, Any
@@ -10,7 +11,7 @@ from typing import Optional, List, Dict, Any
 class OllamaClient:
     """Client for Ollama API."""
     
-    def __init__(self, base_url="http://localhost:11434", model="qwen2.5:3b"):
+    def __init__(self, base_url=None, model=None):
         """
         Initialize Ollama client.
         
@@ -18,8 +19,8 @@ class OllamaClient:
             base_url: Ollama server URL (default: http://localhost:11434)
             model: Model name to use (default: qwen2.5:3b)
         """
-        self.base_url = base_url
-        self.model = model
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.model = model or os.getenv("LLM_MODEL", "qwen2.5:3b")
     
     def generate(
         self, 
@@ -145,9 +146,9 @@ class OllamaClient:
 # Singleton instance for easy import
 _ollama_client = None
 
-def get_ollama_client(model: str = "qwen2.5:3b") -> OllamaClient:
+def get_ollama_client(model: str = None) -> OllamaClient:
     """Get or create Ollama client singleton."""
     global _ollama_client
     if _ollama_client is None or _ollama_client.model != model:
-        _ollama_client = OllamaClient(model=model)
+        _ollama_client = OllamaClient(model=model or os.getenv("LLM_MODEL", "qwen2.5:3b"))
     return _ollama_client

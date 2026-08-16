@@ -8,10 +8,9 @@ qdrant-client
 langfuse==2.28.0
 python-dotenv
 psutil
-openai
+requests
 numpy
 pandas
-sentence-transformers
-transformers
-torch
-ollama
+streamlit
+chainlit
+gradio

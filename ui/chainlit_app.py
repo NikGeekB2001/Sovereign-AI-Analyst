@@ -6,7 +6,21 @@ import os
 from dotenv import load_dotenv
 import uuid
 import time
-from metrics import log_performance_metrics, log_business_metrics, log_security_metrics, flush_metrics
+# Metrics: локальные заглушки (модуль metrics отсутствует в репозитории)
+def log_business_metrics(**kwargs):
+    print(f"[metrics] business: {kwargs}")
+
+def log_performance_metrics(**kwargs):
+    print(f"[metrics] perf: {kwargs}")
+
+def log_security_metrics(**kwargs):
+    print(f"[metrics] security: {kwargs}")
+
+def log_error_metrics(**kwargs):
+    print(f"[metrics] error: {kwargs}")
+
+def flush_metrics():
+    pass
 
 # Загружаем переменные окружения
 load_dotenv()
@@ -128,7 +142,6 @@ async def main(message: cl.Message):
             )
             
             # Логируем метрики ошибок
-            from metrics import log_error_metrics
             log_error_metrics(
                 error_type="api_error",
                 error_message=f"Status code: {response.status_code}",
@@ -192,7 +205,6 @@ async def main(message: cl.Message):
         )
         
         # Логируем метрики ошибок
-        from metrics import log_error_metrics
         log_error_metrics(
             error_type="ui_error",
             error_message=str(e),

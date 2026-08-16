@@ -66,8 +66,8 @@ class ChatRequest(BaseModel):
 
 async def event_generator(request: ChatRequest):
     """Генератор событий для Streaming Response."""
-    # Создаем трейс в Langfuse с расширенной информацией
-    trace = langfuse.trace(
+    # Создаем трейс в Langfuse с расширенной информацией (fallback, если Langfuse выключен)
+    trace = create_trace_with_fallback(
         name="api-chat-stream",
         input={"message": request.message, "user_role": request.user_role},
         metadata={
@@ -78,10 +78,13 @@ async def event_generator(request: ChatRequest):
     )
     
     # Добавляем событие начала обработки
-    trace.event(
-        name="request_received",
-        input={"message": request.message, "user_role": request.user_role}
-    )
+    try:
+        trace.event(
+            name="request_received",
+            input={"message": request.message, "user_role": request.user_role}
+        )
+    except Exception as e:
+        logger.warning(f"Langfuse event failed: {e}")
     
     inputs = {
         "messages": [("user", request.message)],
@@ -196,7 +199,8 @@ async def event_generator(request: ChatRequest):
         except Exception as trace_error:
             logger.error(f"Error updating trace: {str(trace_error)}")
         finally:
-            langfuse.flush()
+            if langfuse:
+                langfuse.flush()
             logger.info("Langfuse connection flushed")
 
 @app.post("/chat/stream")
@@ -219,7 +223,7 @@ async def chat(request: ChatRequest):
     
     trace = create_trace_with_fallback(
         name="api-chat",
-        input_data={"message": request.message, "user_role": request.user_role},
+        input={"message": request.message, "user_role": request.user_role},
         metadata={"session_id": request.session_id}
     )
     
@@ -331,7 +335,8 @@ async def chat(request: ChatRequest):
         except Exception as trace_error:
             logger.error(f"Error updating trace with response: {str(trace_error)}")
         finally:
-            langfuse.flush()
+            if langfuse:
+                langfuse.flush()
             logger.info("Langfuse connection flushed after chat endpoint")
         
         return response_data
@@ -364,7 +369,8 @@ async def chat(request: ChatRequest):
         except Exception as trace_error:
             logger.error(f"Error updating trace with error: {str(trace_error)}")
         finally:
-            langfuse.flush()
+            if langfuse:
+                langfuse.flush()
             logger.info("Langfuse connection flushed after error")
         
         raise HTTPException(status_code=500, detail=str(e))

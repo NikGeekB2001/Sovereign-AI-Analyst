@@ -12,16 +12,16 @@ import time
 class OllamaClient:
     """Client for Ollama API."""
     
-    def __init__(self, base_url="http://localhost:11434", model="qwen2.5:3b"):
+    def __init__(self, base_url=None, model=None):
         """
         Initialize Ollama client.
         
         Args:
-            base_url: Ollama server URL (default: http://localhost:11434)
-            model: Model name to use (default: qwen2.5:3b)
+            base_url: Ollama server URL (default from OLLAMA_BASE_URL env)
+            model: Model name to use (default from LLM_MODEL env)
         """
-        self.base_url = base_url
-        self.model = model
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.model = model or os.getenv("LLM_MODEL", "qwen2.5:3b")
     
     def generate(
         self, 
@@ -173,16 +173,16 @@ class OllamaClient:
 class VLLMClient:
     """Client for vLLM API."""
     
-    def __init__(self, base_url="http://localhost:8000", model="qwen2.5:3b"):
+    def __init__(self, base_url=None, model=None):
         """
         Initialize vLLM client.
         
         Args:
-            base_url: vLLM server URL (default: http://localhost:8000)
-            model: Model name to use (default: qwen2.5:3b)
+            base_url: vLLM server URL (default from VLLM_BASE_URL env)
+            model: Model name to use (default from LLM_MODEL env)
         """
-        self.base_url = base_url
-        self.model = model
+        self.base_url = base_url or os.getenv("VLLM_BASE_URL", "http://localhost:8000")
+        self.model = model or os.getenv("LLM_MODEL", "qwen2.5:3b")
         # Attempt to detect API compatibility
         self.supports_openai_api = self._check_openai_api_compatibility()
     
@@ -449,13 +449,15 @@ class UnifiedLLMClient:
 # Singleton instance for easy import
 _unified_client = None
 
-def get_unified_client(backend: str = None, model: str = "qwen2.5:3b") -> UnifiedLLMClient:
+def get_unified_client(backend: str = None, model: str = None) -> UnifiedLLMClient:
     """Get or create unified LLM client singleton."""
     global _unified_client
     
     # Get backend from environment variable if not provided
     if backend is None:
         backend = os.getenv("LLM_BACKEND", "ollama")
+    if model is None:
+        model = os.getenv("LLM_MODEL", "qwen2.5:3b")
     
     if _unified_client is None or _unified_client.backend != backend or _unified_client.model != model:
         _unified_client = UnifiedLLMClient(backend=backend, model=model)

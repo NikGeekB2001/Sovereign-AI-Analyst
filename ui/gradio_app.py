@@ -61,7 +61,10 @@ def send_message(message: str, user_role: str, history: list) -> tuple:
         history.append({"role": "assistant", "content": ai_response})
         
         # Обновляем трейс с результатом
-        trace.update(output={"response": ai_response, "status": "success"})
+        try:
+            trace.update(output={"response": ai_response, "status": "success"})
+        except Exception as e:
+            print(f"[SovUI] Trace update failed: {e}")
         
     except Exception as e:
         print(f"[SovUI] Ошибка: {e}")
@@ -70,7 +73,10 @@ def send_message(message: str, user_role: str, history: list) -> tuple:
         error_msg = f"❌ Ошибка: {str(e)}"
         history.append({"role": "assistant", "content": error_msg})
         # Обновляем трейс с ошибкой
-        trace.update(output={"response": error_msg, "status": "error", "error": str(e)}, level="ERROR", status_message=str(e))
+        try:
+            trace.update(output={"response": error_msg, "status": "error", "error": str(e)}, level="ERROR", status_message=str(e))
+        except Exception as te:
+            print(f"[SovUI] Trace update failed: {te}")
     
     # Принудительно отправляем трейс в Langfuse
     flush_langfuse()
