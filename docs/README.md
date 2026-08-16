@@ -7,6 +7,7 @@
 ### 0. Новые документы (2026-08, по итогам E2E-верификации)
 
 - **mcp_design.md** - Контракт-дизайн API/MCP-поверхности: каталог инструментов с JSON Schema, модель ошибок SOV-*, scopes/RBAC, SSE-контракт, наблюдаемость, версии, план внедрения (contract-first, как проектируют API)
+- **PERFORMANCE_METRICS.md** - метрики производительности: качество RAG (RAGAS-стиль: faithfulness, answer_relevancy, context_precision/recall, hallucination_rate) и метрики системы (latency, токены, кэш, SOV-ошибки); автооценка через `backend/evaluation/run_evaluation.py` + золотой набор `test_dataset.jsonl`
 - **diagrams/mcp_sequence.puml / .svg** - секвенс-диаграмма MCP-контракта: аутентификация, Tool Registry, конвейер агента, RBAC, SSE (PlantUML-исходник + готовый SVG-рендер)
 - **audit_2026-08-16.md** - Аудит репозитория и плана v2 по результатам живого E2E-прогона: доказанная работоспособность, 9 исправленных багов, риски, скорректированный roadmap
 
