@@ -23,11 +23,11 @@
           "user_role": {
             "type": "string",
             "enum": [
-              "junior",
-              "senior",
+              "куратор",
+              "специалист отдела",
               "admin"
             ],
-            "default": "junior"
+            "default": "куратор"
           }
         }
       },
@@ -73,11 +73,11 @@
           "user_role": {
             "type": "string",
             "enum": [
-              "junior",
-              "senior",
+              "куратор",
+              "специалист отдела",
               "admin"
             ],
-            "default": "junior"
+            "default": "куратор"
           },
           "top_k": {
             "type": "integer",
@@ -179,11 +179,11 @@
           "user_role": {
             "type": "string",
             "enum": [
-              "junior",
-              "senior",
+              "куратор",
+              "специалист отдела",
               "admin"
             ],
-            "default": "junior"
+            "default": "куратор"
           }
         }
       },
@@ -213,11 +213,11 @@
           "user_role": {
             "type": "string",
             "enum": [
-              "junior",
-              "senior",
+              "куратор",
+              "специалист отдела",
               "admin"
             ],
-            "default": "junior"
+            "default": "куратор"
           }
         }
       },
@@ -249,12 +249,12 @@
     }
   },
   "scopesByRole": {
-    "junior": [
+    "куратор": [
       "graph:read",
       "vector:read",
       "chat:read"
     ],
-    "senior": [
+    "специалист отдела": [
       "graph:read",
       "vector:read",
       "chat:read",

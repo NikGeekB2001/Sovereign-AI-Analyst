@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="1180" viewBox="0 0 1560 1180"><rect width="100%" height="100%" fill="#ffffff"/>
+<text x="780" y="34" font-family="Segoe UI, Arial, sans-serif" font-size="19" font-weight="700" fill="#111827" text-anchor="middle">MCP-контракт: вызов chat.complete и поток SSE (POST /api/v1/chat)</text>
+<rect x="78" y="48" width="144" height="82" rx="10" fill="#3b82f6" opacity="0.12"/>
+<rect x="78" y="48" width="144" height="82" rx="10" fill="none" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="150.0" y="74.0" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Клиент</text>
+<text x="150.0" y="94.0" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="400" fill="#6b7280" text-anchor="middle">UI / агент</text>
+<line x1="150.0" y1="106" x2="150.0" y2="1120" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="5,5"/>
+<rect x="236" y="48" width="144" height="82" rx="10" fill="#0ea5e9" opacity="0.12"/>
+<rect x="236" y="48" width="144" height="82" rx="10" fill="none" stroke="#0ea5e9" stroke-width="1.4"/>
+<text x="307.5" y="74.0" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">FastAPI</text>
+<text x="307.5" y="94.0" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="400" fill="#6b7280" text-anchor="middle">MCP-сервер</text>
+<line x1="307.5" y1="106" x2="307.5" y2="1120" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="5,5"/>
+<rect x="393" y="48" width="144" height="82" rx="10" fill="#8b5cf6" opacity="0.12"/>
+<rect x="393" y="48" width="144" height="82" rx="10" fill="none" stroke="#8b5cf6" stroke-width="1.4"/>
+<text x="465.0" y="74.0" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Tool Registry</text>
+<text x="465.0" y="94.0" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="400" fill="#6b7280" text-anchor="middle">JSON Schema + scopes</text>
+<line x1="465.0" y1="106" x2="465.0" y2="1120" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="5,5"/>
+<rect x="550" y="48" width="144" height="82" rx="10" fill="#f59e0b" opacity="0.12"/>
+<rect x="550" y="48" width="144" height="82" rx="10" fill="none" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="622.5" y="74.0" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Агент</text>
+<text x="622.5" y="94.0" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="400" fill="#6b7280" text-anchor="middle">LangGraph</text>
+<line x1="622.5" y1="106" x2="622.5" y2="1120" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="5,5"/>
+<rect x="708" y="48" width="144" height="82" rx="10" fill="#10b981" opacity="0.12"/>
+<rect x="708" y="48" width="144" height="82" rx="10" fill="none" stroke="#10b981" stroke-width="1.4"/>
+<text x="780.0" y="74.0" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Neo4j</text>
+<text x="780.0" y="94.0" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="400" fill="#6b7280" text-anchor="middle">граф</text>
+<line x1="780.0" y1="106" x2="780.0" y2="1120" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="5,5"/>
+<rect x="866" y="48" width="144" height="82" rx="10" fill="#10b981" opacity="0.12"/>
+<rect x="866" y="48" width="144" height="82" rx="10" fill="none" stroke="#10b981" stroke-width="1.4"/>
+<text x="937.5" y="74.0" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Qdrant</text>
+<text x="937.5" y="94.0" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="400" fill="#6b7280" text-anchor="middle">векторы</text>
+<line x1="937.5" y1="106" x2="937.5" y2="1120" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="5,5"/>
+<rect x="1023" y="48" width="144" height="82" rx="10" fill="#ef4444" opacity="0.12"/>
+<rect x="1023" y="48" width="144" height="82" rx="10" fill="none" stroke="#ef4444" stroke-width="1.4"/>
+<text x="1095.0" y="74.0" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Ollama/vLLM</text>
+<text x="1095.0" y="94.0" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="400" fill="#6b7280" text-anchor="middle">LLM</text>
+<line x1="1095.0" y1="106" x2="1095.0" y2="1120" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="5,5"/>
+<rect x="1180" y="48" width="144" height="82" rx="10" fill="#06b6d4" opacity="0.12"/>
+<rect x="1180" y="48" width="144" height="82" rx="10" fill="none" stroke="#06b6d4" stroke-width="1.4"/>
+<text x="1252.5" y="74.0" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">SSE-канал</text>
+<text x="1252.5" y="94.0" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="400" fill="#6b7280" text-anchor="middle">стриминг</text>
+<line x1="1252.5" y1="106" x2="1252.5" y2="1120" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="5,5"/>
+<rect x="1338" y="48" width="144" height="82" rx="10" fill="#ec4899" opacity="0.12"/>
+<rect x="1338" y="48" width="144" height="82" rx="10" fill="none" stroke="#ec4899" stroke-width="1.4"/>
+<text x="1410.0" y="74.0" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Langfuse</text>
+<text x="1410.0" y="94.0" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="400" fill="#6b7280" text-anchor="middle">observability</text>
+<line x1="1410.0" y1="106" x2="1410.0" y2="1120" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="5,5"/>
+<line x1="150.0" y1="132" x2="307.5" y2="132" stroke="#475569" stroke-width="1.4"/>
+<polygon points="307.5,132 299.5,127 299.5,137" fill="#475569"/>
+<text x="228.8" y="112.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">POST /api/v1/chat · X-API-Key:</text>
+<text x="228.8" y="124.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">&lt;ключ&gt; · user_role: &quot;куратор&quot;</text>
+<path d="M 307.5 178 h 34 v 40 h -34" fill="none" stroke="#475569" stroke-width="1.3"/>
+<polygon points="309.5,218 301.5,214 317.5,214" fill="#475569"/>
+<text x="349.5" y="192.0" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="400" fill="#334155" text-anchor="start">ключ → роль (куратор / специалист</text>
+<text x="349.5" y="205.0" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="400" fill="#334155" text-anchor="start">отдела / admin); scopes</text>
+<line x1="307.5" y1="224" x2="465.0" y2="224" stroke="#475569" stroke-width="1.4"/>
+<polygon points="465.0,224 457.0,219 457.0,229" fill="#475569"/>
+<text x="386.2" y="216.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">validate_args(&quot;chat.complete&quot;, body)</text>
+<line x1="465.0" y1="270" x2="307.5" y2="270" stroke="#64748b" stroke-width="1.4" stroke-dasharray="6,4"/>
+<polygon points="307.5,270 315.5,265 315.5,275" fill="#64748b"/>
+<text x="386.2" y="250.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">OK / SOV-1001, SOV-1003</text>
+<text x="386.2" y="262.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">(retryable=false)</text>
+<line x1="307.5" y1="316" x2="622.5" y2="316" stroke="#475569" stroke-width="1.4"/>
+<polygon points="622.5,316 614.5,311 614.5,321" fill="#475569"/>
+<text x="465.0" y="296.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">запуск конвейера (user_role =</text>
+<text x="465.0" y="308.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">&quot;куратор&quot;)</text>
+<path d="M 622.5 362 h 34 v 40 h -34" fill="none" stroke="#475569" stroke-width="1.3"/>
+<polygon points="624.5,402 616.5,398 632.5,398" fill="#475569"/>
+<text x="664.5" y="376.0" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="400" fill="#334155" text-anchor="start">input_guardrail: PII, prompt</text>
+<text x="664.5" y="389.0" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="400" fill="#334155" text-anchor="start">injection</text>
+<line x1="622.5" y1="408" x2="1095.0" y2="408" stroke="#475569" stroke-width="1.4"/>
+<polygon points="1095.0,408 1087.0,403 1087.0,413" fill="#475569"/>
+<text x="858.8" y="400.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">planner: план шагов</text>
+<line x1="622.5" y1="454" x2="780.0" y2="454" stroke="#475569" stroke-width="1.4"/>
+<polygon points="780.0,454 772.0,449 772.0,459" fill="#475569"/>
+<text x="701.2" y="434.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">tool_executor: read-only Cypher</text>
+<text x="701.2" y="446.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">(MATCH/RETURN)</text>
+<line x1="780.0" y1="500" x2="622.5" y2="500" stroke="#64748b" stroke-width="1.4" stroke-dasharray="6,4"/>
+<polygon points="622.5,500 630.5,495 630.5,505" fill="#64748b"/>
+<text x="701.2" y="480.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">LegalAct / Authority / Keyword</text>
+<text x="701.2" y="492.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">(access_level)</text>
+<line x1="622.5" y1="546" x2="937.5" y2="546" stroke="#475569" stroke-width="1.4"/>
+<polygon points="937.5,546 929.5,541 929.5,551" fill="#475569"/>
+<text x="780.0" y="526.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">vector.search: RBAC-фильтр</text>
+<text x="780.0" y="538.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">access_level = public</text>
+<line x1="937.5" y1="592" x2="622.5" y2="592" stroke="#64748b" stroke-width="1.4" stroke-dasharray="6,4"/>
+<polygon points="622.5,592 630.5,587 630.5,597" fill="#64748b"/>
+<text x="780.0" y="584.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">кандидаты (куратору — только public)</text>
+<line x1="622.5" y1="638" x2="1095.0" y2="638" stroke="#475569" stroke-width="1.4"/>
+<polygon points="1095.0,638 1087.0,633 1087.0,643" fill="#475569"/>
+<text x="858.8" y="630.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">rerank (Qwen2.5-7B)</text>
+<path d="M 622.5 684 h 34 v 40 h -34" fill="none" stroke="#475569" stroke-width="1.3"/>
+<polygon points="624.5,724 616.5,720 632.5,720" fill="#475569"/>
+<text x="664.5" y="698.0" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="400" fill="#334155" text-anchor="start">security_guard: PII, RBAC-проверка</text>
+<text x="664.5" y="711.0" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="400" fill="#334155" text-anchor="start">ответа</text>
+<line x1="622.5" y1="730" x2="1095.0" y2="730" stroke="#475569" stroke-width="1.4"/>
+<polygon points="1095.0,730 1087.0,725 1087.0,735" fill="#475569"/>
+<text x="858.8" y="722.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">synthesize финального ответа</text>
+<line x1="622.5" y1="776" x2="1252.5" y2="776" stroke="#475569" stroke-width="1.4"/>
+<polygon points="1252.5,776 1244.5,771 1244.5,781" fill="#475569"/>
+<text x="937.5" y="756.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">node_start / tool_call / error /</text>
+<text x="937.5" y="768.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">done (heartbeat 15s)</text>
+<line x1="1252.5" y1="822" x2="150.0" y2="822" stroke="#64748b" stroke-width="1.4" stroke-dasharray="6,4"/>
+<polygon points="150.0,822 158.0,817 158.0,827" fill="#64748b"/>
+<text x="701.2" y="802.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">SSE-поток; финал: data: [DONE] +</text>
+<text x="701.2" y="814.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">response_id</text>
+<line x1="307.5" y1="868" x2="1410.0" y2="868" stroke="#64748b" stroke-width="1.4" stroke-dasharray="6,4"/>
+<polygon points="1410.0,868 1402.0,863 1402.0,873" fill="#64748b"/>
+<text x="858.8" y="848.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">span: tokens, latency_ms, cache_hit,</text>
+<text x="858.8" y="860.0" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle">error_code SOV-*</text>
+<text x="780" y="1150" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#6b7280" text-anchor="middle">Источник: docs/mcp_design.md · SOV-5xxx при недоступности БД (retryable, backoff 1/2/4/30с) · SOV-4xxx при нехватке scope (deny + audit log)</text>
+</svg>

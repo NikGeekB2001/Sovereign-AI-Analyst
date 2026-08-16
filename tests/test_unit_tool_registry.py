@@ -43,13 +43,13 @@ class TestManifest:
             assert "." in name, f"имя без домена: {name}"
 
     def test_scopes_by_role_hierarchy(self):
-        junior = set(SCOPES_BY_ROLE["junior"])
-        senior = set(SCOPES_BY_ROLE["senior"])
+        curator = set(SCOPES_BY_ROLE["куратор"])
+        specialist = set(SCOPES_BY_ROLE["специалист отдела"])
         admin = set(SCOPES_BY_ROLE["admin"])
-        assert junior <= senior <= admin
+        assert curator <= specialist <= admin
 
     def test_scopes_for_role_default(self):
-        assert scopes_for_role("unknown_role") == SCOPES_BY_ROLE["junior"]
+        assert scopes_for_role("unknown_role") == SCOPES_BY_ROLE["куратор"]
 
 
 class TestValidateArgs:

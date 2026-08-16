@@ -92,7 +92,7 @@ class AgentState(TypedDict):
     context: List[str]            # Накопленный контекст (плоский список, без add_messages)
     generated_query: str          # Cypher от GraphQueryPlanner
     blocked: bool                 # Флаг блокировки Input Guardrail
-    user_role: str                # Для RBAC (junior, senior, admin)
+    user_role: str                # Для RBAC (куратор, специалист отдела, admin)
 
 def input_guardrail_node(state: AgentState):
     """Input Guardrail: Проверка входящего запроса на безопасность."""
@@ -117,8 +117,8 @@ def input_guardrail_node(state: AgentState):
         trace = langfuse.trace(
             id=trace_id,
             name="input-guardrail-node",
-            input={"user_query": user_query, "user_role": state.get("user_role", "junior")},
-            metadata={"node": "input_guardrail", "user_role": state.get("user_role", "junior")}
+            input={"user_query": user_query, "user_role": state.get("user_role", "куратор")},
+            metadata={"node": "input_guardrail", "user_role": state.get("user_role", "куратор")}
         )
         
         # Создаем span
@@ -182,12 +182,12 @@ def output_guardrail_node(state: AgentState):
     
     # Определяем уровень доступа для каждой роли
     access_levels = {
-        "junior": ["risks"],  # Junior может видеть риски
-        "senior": ["risks", "companies", "documents"],  # Senior может видеть риски, компании и документы
+        "куратор": ["risks"],  # Куратор может видеть риски
+        "специалист отдела": ["risks", "companies", "documents"],  # Специалист отдела может видеть риски, компании и документы
         "admin": ["risks", "companies", "documents", "secrets"]  # Admin имеет полный доступ
     }
     
-    user_role = state.get("user_role", "junior")
+    user_role = state.get("user_role", "куратор")
     allowed_actions = access_levels.get(user_role, [])
     
     # Проверяем, какие действия запрашивает пользователь
@@ -215,8 +215,8 @@ def output_guardrail_node(state: AgentState):
         trace = langfuse.trace(
             id=trace_id,
             name="output-guardrail-node",
-            input={"response": response, "user_role": state.get("user_role", "junior"), "user_query": user_query},
-            metadata={"node": "output_guardrail", "user_role": state.get("user_role", "junior"), "restricted_access": restricted_access}
+            input={"response": response, "user_role": state.get("user_role", "куратор"), "user_query": user_query},
+            metadata={"node": "output_guardrail", "user_role": state.get("user_role", "куратор"), "restricted_access": restricted_access}
         )
         
         # Создаем span
@@ -227,10 +227,10 @@ def output_guardrail_node(state: AgentState):
             input={"response": response, "user_query": user_query, "restricted_access": restricted_access}
         )
     
-    # Проверка на утечку PII (ИНН, паспорта) для junior и проверка RBAC
+    # Проверка на утечку PII (ИНН, паспорта) для куратор и проверка RBAC
     if restricted_access:
         response = f"[ДОСТУП ОГРАНИЧЕН ПОЛИТИКОЙ RBAC ДЛЯ РОЛИ {user_role.upper()}] Информация недоступна из-за ограничений безопасности."
-    elif state.get("user_role") == "junior":
+    elif state.get("user_role") == "куратор":
         import re
         inn_pattern = r'\b\d{10,12}\b'
         if re.search(inn_pattern, response):
@@ -267,8 +267,8 @@ def planner_node(state: AgentState):
         trace = langfuse.trace(
             id=trace_id,
             name="planner-node",
-            input={"user_query": user_query, "user_role": state.get("user_role", "junior")},
-            metadata={"node": "planner", "user_role": state.get("user_role", "junior")}
+            input={"user_query": user_query, "user_role": state.get("user_role", "куратор")},
+            metadata={"node": "planner", "user_role": state.get("user_role", "куратор")}
         )
         
         # Создаем span
@@ -330,8 +330,8 @@ def graph_query_planner_node(state: AgentState):
         trace = langfuse.trace(
             id=trace_id,
             name="graph-query-planner-node",
-            input={"step": step, "user_role": state.get("user_role", "junior")},
-            metadata={"node": "graph_query_planner", "user_role": state.get("user_role", "junior")}
+            input={"step": step, "user_role": state.get("user_role", "куратор")},
+            metadata={"node": "graph_query_planner", "user_role": state.get("user_role", "куратор")}
         )
         
         # Создаем span
@@ -478,11 +478,11 @@ def tool_executor_node(state: AgentState):
                 print("⚠️ Сгенерированный Cypher невалиден/не read-only, пропускаю (fallback)")
                 cypher_query = ""
 
-            user_role = state.get("user_role", "junior")
+            user_role = state.get("user_role", "куратор")
             # Определяем разрешенные уровни доступа для роли
             if user_role == "admin":
                 allowed_access = ["public", "internal", "restricted"]
-            elif user_role == "senior":
+            elif user_role == "специалист отдела":
                 allowed_access = ["public", "internal"]
             else:
                 allowed_access = ["public"]
@@ -606,8 +606,8 @@ def security_guard_node(state: AgentState):
         if hasattr(item, 'content'):
             item_str = item.content
         
-        # Если пользователь junior и в тексте есть маркер секрета - вырезаем
-        if state["user_role"] == "junior" and "секретно" in item_str.lower():
+        # Если пользователь куратор и в тексте есть маркер секрета - вырезаем
+        if state["user_role"] == "куратор" and "секретно" in item_str.lower():
             safe_context.append("[DATA REDACTED DUE TO RBAC POLICY]")
             redacted_count += 1
             continue
@@ -789,7 +789,7 @@ if __name__ == "__main__":
     # Тестовый запуск с Langfuse Tracing
     inputs = {
         "messages": [("user", "Какие риски в договоре №123?")],
-        "user_role": "junior",
+        "user_role": "куратор",
         "context": []
     }
     

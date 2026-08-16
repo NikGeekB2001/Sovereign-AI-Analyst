@@ -2,7 +2,7 @@
 """Интеграционные тесты контракта данных (требуют живых Neo4j/Qdrant).
 
 Проверяют договор загрузчика: access_level обязателен на узлах Neo4j
-и в payload Qdrant; RBAC-фильтр junior видит только public.
+и в payload Qdrant; RBAC-фильтр куратор видит только public.
 Пропускаются автоматически, если БД недоступны (CI без инфраструктуры).
 """
 import os
@@ -79,7 +79,7 @@ def test_qdrant_payload_contract():
 
 
 def test_rbac_filter_junior_vs_admin():
-    """Контракт RBAC: junior видит public, admin — все уровни."""
+    """Контракт RBAC: куратор видит public, admin — все уровни."""
     client = QdrantClient(url=QDRANT_URL)
 
     junior_filter = Filter(must=[FieldCondition(key="access_level", match=MatchValue(value="public"))])

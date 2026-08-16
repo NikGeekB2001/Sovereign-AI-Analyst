@@ -189,8 +189,8 @@
 
 | Роль | Scopes |
 |---|---|
-| junior | `graph:read, vector:read, web:read(без crawl), chat:read` |
-| senior | + `web:crawl, office:read, chart:read` |
+| куратор | `graph:read, vector:read, web:read(без crawl), chat:read` |
+| специалист отдела | + `web:crawl, office:read, chart:read` |
 | admin | + `office:write, vector:write, admin` |
 
 ### 6.3 Инструментальный sandbox
@@ -266,3 +266,37 @@
 3. `access_level` — обязателен на узлах и в payload; тест на RBAC-фильтр в CI.
 4. Ответ на русском — в промптах явное требование (7b иногда уходит в мультиязычность).
 5. `.env` — единственное место для секретов; в коде и git — никогда.
+
+
+## 12. Диаграммы
+
+### 12.1 Секвенс-диаграмма MCP-контракта
+
+Полный поток вызова инструмента: аутентификация (X-API-Key → роль), валидация
+через Tool Registry, конвейер агента с read-only доступом к Neo4j/Qdrant,
+RBAC-фильтрация по роли, SSE-стриминг и наблюдаемость.
+
+- Исходник PlantUML: [docs/diagrams/mcp_sequence.puml](../diagrams/mcp_sequence.puml)
+  — редактируемый, рендерится в plantuml.com/editor или плагином IDE.
+- Готовый рендер SVG: [docs/diagrams/mcp_sequence.svg](../diagrams/mcp_sequence.svg)
+  — открывается в браузере, без внешних зависимостей.
+
+Как читать диаграмму:
+
+1. **Вход** — POST /api/v1/chat с заголовком `X-API-Key`; сервер маппит ключ на роль
+   (`куратор` / `специалист отдела` / `admin`) и набор scopes.
+2. **Tool Registry** — единая точка валидации: JSON Schema, коды SOV-1001 (аргументы),
+   SOV-1003 (неизвестный инструмент); невалидный запрос отклоняется до запуска агента.
+3. **Конвейер** — только read-only Cypher (cypher_guard) и RBAC-фильтр access_level
+   в Qdrant: куратор видит только `public`, специалист отдела — `public + internal`,
+   admin — всё.
+4. **Выход** — SSE-события `node_start / node_end / tool_call / tool_result / error / done`
+   с heartbeat 15с; финальное `done` содержит `response_id` и метрики токенов.
+5. **Ошибки** — SOV-4xxx (нет scope → deny + audit log), SOV-5xxx (БД недоступна →
+   retryable с backoff 1/2/4/30с).
+
+### 12.2 Другие диаграммы
+
+Конвейер агента в целом (User → Guardrails → Agent Loop → Tool Execution → Response):
+[docs/C4_Model/Sequence_Data_Flow.puml](../C4_Model/Sequence_Data_Flow.puml).
+Архитектурные виды C4: [docs/C4_Model/](../C4_Model/) (Level 1-3, Deployment).

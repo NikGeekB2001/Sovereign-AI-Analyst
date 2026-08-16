@@ -65,7 +65,7 @@ class RAGRetriever:
                   vector[: self.vector_size % len(vector)])
         return vector
 
-    def retrieve(self, query: str, user_role: str = "junior",
+    def retrieve(self, query: str, user_role: str = "куратор",
                  top_k: int = 3, min_score: float = 0.3) -> List[Dict[str, Any]]:
         """
         Поиск релевантных документов в Qdrant.
@@ -90,11 +90,11 @@ class RAGRetriever:
             rbac_filter = models.Filter(must=[
                 models.FieldCondition(key="access_level", match=models.MatchAny(any=["public", "internal", "restricted"]))
             ])
-        elif user_role == "senior":
+        elif user_role == "специалист отдела":
             rbac_filter = models.Filter(must=[
                 models.FieldCondition(key="access_level", match=models.MatchAny(any=["public", "internal"]))
             ])
-        else:  # junior
+        else:  # куратор
             rbac_filter = models.Filter(must=[
                 models.FieldCondition(key="access_level", match=models.MatchValue(value="public"))
             ])

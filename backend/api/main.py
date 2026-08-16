@@ -77,7 +77,7 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     message: str
-    user_role: str = "junior"  # junior, senior, admin
+    user_role: str = "куратор"  # куратор, специалист отдела, admin
     session_id: Optional[str] = None
 
 async def event_generator(request: ChatRequest):

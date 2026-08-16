@@ -1,0 +1,47 @@
+@startuml
+' ============================================================
+' MCP-контракт: поток вызова инструмента через /api/v1
+' Источник истины: docs/mcp_design.md (Tool Registry, SOV-* ошибки, RBAC)
+' Рендер: plantuml.com/plantuml или плагин IDE; готовый SVG: mcp_sequence.svg
+' ============================================================
+
+title MCP-контракт: вызов chat.complete (POST /api/v1/chat) и поток SSE
+
+actor "Клиент\n(UI / внешний агент)" as Client
+participant "FastAPI\nMCP-сервер" as API
+participant "Tool Registry\n(JSON Schema + scopes)" as TR
+participant "Агент\n(LangGraph)" as AG
+database "Neo4j\n(граф)" as Neo
+database "Qdrant\n(векторы)" as Qdr
+participant "Ollama / vLLM\n(LLM)" as LLM
+participant "SSE-канал" as SSE
+participant "Langfuse\n(observability)" as LF
+
+' --- 1. Аутентификация и валидация ---
+Client -> API : POST /api/v1/chat\nX-API-Key: <ключ>\n{"message": "...", "user_role": "куратор"}
+API -> API : ключ -> роль (куратор / специалист отдела / admin)\nscopes: graph:read, vector:read, chat:read
+API -> TR : validate_args("chat.complete", body)
+TR --> API : OK\nили SOV-1001/SOV-1003 (валидация, retryable=false)
+
+' --- 2. Конвейер агента (только read-only доступ к данным) ---
+API -> AG : запуск конвейера (user_role = "куратор")
+AG -> AG : input_guardrail\n(PII, prompt injection)
+AG -> LLM : planner: план шагов
+AG -> Neo : graph_query_planner -> tool_executor\n(read-only Cypher: MATCH/RETURN)
+Neo --> AG : LegalAct / Authority / Keyword\n(фильтр access_level по роли)
+AG -> Qdr : vector.search\n(RBAC-фильтр access_level = public)
+Qdr --> AG : кандидаты (для куратора - только public)
+AG -> LLM : rerank (кросс-энкодер Qwen2.5-7B)
+AG -> AG : security_guard\n(PII, RBAC-проверка ответа)
+AG -> LLM : synthesize финального ответа
+
+' --- 3. Стриминг и наблюдаемость ---
+AG --> SSE : node_start / node_end / tool_call / tool_result\nerror / done (heartbeat 15s)
+SSE --> Client : SSE-поток, финал: data: [DONE]\n(с response_id и метриками токенов)
+API -> LF : span: tool, args_hash, tokens, latency_ms,\ncache_hit, error_code (SOV-*)
+
+note over API, AG
+  Если БД недоступны -> SOV-5xxx (retryable, backoff 1/2/4/30 с)
+  Если роль не имеет scope -> SOV-4xxx (deny, audit log)
+end note
+@enduml

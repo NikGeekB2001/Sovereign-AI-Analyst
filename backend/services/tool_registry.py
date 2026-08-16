@@ -32,7 +32,7 @@ TOOLS: Dict[str, Dict[str, Any]] = {
             "required": ["query"],
             "properties": {
                 "query": {"type": "string", "description": "Read-only Cypher"},
-                "user_role": {"type": "string", "enum": ["junior", "senior", "admin"], "default": "junior"},
+                "user_role": {"type": "string", "enum": ["куратор", "специалист отдела", "admin"], "default": "куратор"},
             },
         },
         "errorCodes": ["SOV-1001", "SOV-1003", "SOV-2004", "SOV-4003", "SOV-5001"],
@@ -55,7 +55,7 @@ TOOLS: Dict[str, Dict[str, Any]] = {
             "required": ["query"],
             "properties": {
                 "query": {"type": "string"},
-                "user_role": {"type": "string", "enum": ["junior", "senior", "admin"], "default": "junior"},
+                "user_role": {"type": "string", "enum": ["куратор", "специалист отдела", "admin"], "default": "куратор"},
                 "top_k": {"type": "integer", "minimum": 1, "maximum": 20, "default": 5},
                 "min_score": {"type": "number", "default": 0.3},
             },
@@ -100,7 +100,7 @@ TOOLS: Dict[str, Dict[str, Any]] = {
             "required": ["message"],
             "properties": {
                 "message": {"type": "string"},
-                "user_role": {"type": "string", "enum": ["junior", "senior", "admin"], "default": "junior"},
+                "user_role": {"type": "string", "enum": ["куратор", "специалист отдела", "admin"], "default": "куратор"},
             },
         },
         "errorCodes": ["SOV-1001", "SOV-1003", "SOV-3001", "SOV-3002"],
@@ -115,7 +115,7 @@ TOOLS: Dict[str, Dict[str, Any]] = {
             "required": ["message"],
             "properties": {
                 "message": {"type": "string"},
-                "user_role": {"type": "string", "enum": ["junior", "senior", "admin"], "default": "junior"},
+                "user_role": {"type": "string", "enum": ["куратор", "специалист отдела", "admin"], "default": "куратор"},
             },
         },
         "errorCodes": ["SOV-1001", "SOV-1003", "SOV-3001", "SOV-3002"],
@@ -135,8 +135,8 @@ ERROR_MODEL = {
 }
 
 SCOPES_BY_ROLE = {
-    "junior": ["graph:read", "vector:read", "chat:read"],
-    "senior": ["graph:read", "vector:read", "chat:read", "web:read"],
+    "куратор": ["graph:read", "vector:read", "chat:read"],
+    "специалист отдела": ["graph:read", "vector:read", "chat:read", "web:read"],
     "admin": ["graph:read", "vector:read", "vector:write", "chat:read", "web:read", "office:read", "office:write", "admin"],
 }
 
@@ -207,7 +207,7 @@ def validate_args(tool_name: str, args: Dict[str, Any] | None) -> List[str]:
 
 
 def scopes_for_role(role: str) -> List[str]:
-    return SCOPES_BY_ROLE.get(role, SCOPES_BY_ROLE["junior"])
+    return SCOPES_BY_ROLE.get(role, SCOPES_BY_ROLE["куратор"])
 
 
 if __name__ == "__main__":

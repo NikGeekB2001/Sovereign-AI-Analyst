@@ -56,7 +56,7 @@ async def start():
     cl.user_session.set("session_id", session_id)
     
     # Устанавливаем роль пользователя по умолчанию
-    user_role = "junior"
+    user_role = "куратор"
     cl.user_session.set("user_role", user_role)
     
     # Отображаем кнопку для выбора роли
@@ -77,7 +77,7 @@ async def main(message: cl.Message):
     # Получаем информацию о пользователе и предыдущем состоянии API
     api_available = cl.user_session.get("api_available", False)
     session_id = cl.user_session.get("session_id", str(uuid.uuid4()))
-    user_role = cl.user_session.get("user_role", "junior")
+    user_role = cl.user_session.get("user_role", "куратор")
     
     # Логируем начало обработки сообщения
     start_time = time.time()
