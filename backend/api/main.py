@@ -7,6 +7,13 @@ import logging
 import time  # Для измерения времени выполнения
 from typing import Optional, Dict, Any
 from fastapi import FastAPI, HTTPException
+
+# Загрузка .env (креды БД/LLM) — файл gitignored
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -116,7 +123,7 @@ async def event_generator(request: ChatRequest):
         response_text = ""  # Для сбора текста ответа
         
         # Запуск графа агентов
-        async for event in agent_app.astream(inputs):
+        async for event in agent_app.astream(inputs, config={"recursion_limit": 50}):
             for node_name, output in event.items():
                 if node_name != "__end__":
                     # Формируем SSE событие
@@ -267,7 +274,7 @@ async def chat(request: ChatRequest):
         # Проверим, что agent_app действительно является объектом компилированного графа
         print(f"📋 [API] Agent app type: {type(agent_app)}")
         
-        result = await agent_app.ainvoke(inputs)
+        result = await agent_app.ainvoke(inputs, config={"recursion_limit": 50})
         
         # Проверка результата
         if result is None:

@@ -6,6 +6,13 @@ Refactored by GLM-5.1 & Lingma Agent.
 from typing import Annotated, TypedDict, List, Literal
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
+# Загрузка .env (креды БД/LLM) — файл gitignored
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
 import json
 import os
 import hashlib

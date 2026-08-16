@@ -125,6 +125,8 @@ def parse_xml(filepath: str) -> dict | None:
             "signed_by": signed_by[:200] if signed_by else "",
             "status": status,
             "is_widely_used": is_widely_used == "1",
+        "access_level": os.getenv("ACCESS_LEVEL_DEFAULT", "public")
+        if is_widely_used == "1" else "internal",
             "text": text[:5000] if text else "",  # ограничиваем длину
             "keywords": keywords[:10],  # максимум 10 ключевых слов
             "classifier": classifier,
@@ -185,6 +187,7 @@ def insert_neo4j_batch(driver, docs: list[dict]):
                 a.signed_by = doc.signed_by,
                 a.status = doc.status,
                 a.is_widely_used = doc.is_widely_used,
+                a.access_level = doc.access_level,
                 a.classifier = doc.classifier
             WITH a, doc
             WHERE doc.authority <> ''
@@ -262,9 +265,7 @@ def insert_qdrant_batch(client: QdrantClient, docs: list[dict], embeddings: list
                     "authority": doc["authority"],
                     "text_preview": doc["text"][:500],
                     # RBAC: public для широко используемых/действующих, иначе internal
-                    "access_level": os.getenv("ACCESS_LEVEL_DEFAULT", "public")
-                    if doc.get("is_widely_used") is not False
-                    else "internal",
+                    "access_level": doc.get("access_level", "public"),
                 },
             )
         )
