@@ -247,8 +247,8 @@
 
 | Фаза | Содержание | Оценка | Критерий готовности |
 |---|---|---|---|
-| 0 | Тесты+CI (загрузчик→БД, retriever, py_compile, GH Actions) | 2 дня | `CI зелёный`, регрессия ловится |
-| 1 | Tool Registry + mcp.json + обёртки существующих инструментов | 2 дня | `/api/v1/tools` отдаёт манифест, graph.query через контракт |
+| 0 | ✅ Тесты+CI (загрузчик, retriever, py_compile, GH Actions) | 2 дня | **СДЕЛАНО 2026-08-16**: 44 теста (40 unit + 4 integration), `.github/workflows/ci.yml` |
+| 1 | ✅ Tool Registry + mcp.json + обёртки существующих инструментов | 2 дня | **СДЕЛАНО 2026-08-16**: `backend/services/tool_registry.py`, `mcp.json`, `GET /api/v1/tools` (7 инструментов), алиасы `/api/v1/chat*` |
 | 2 | API-ключ → роль (уровень 1) | 1 день | роль из ключа, не из тела |
 | 3 | SSE-контракт (события node_start/…/done) | 1 день | UI показывает метрики; done с response_id |
 | 4 | web.* (Firecrawl, кэш, лимиты) | 2–3 дня | scrape со счётчиком лимита, кэш в Qdrant |

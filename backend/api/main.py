@@ -39,6 +39,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 # Импорт агента и Langfuse
 from backend.agents.multi_agent_graph import app as agent_app
+from backend.services.tool_registry import get_manifest
 
 # Импорт из langfuse_integration (используем абсолютный путь из корня проекта)
 from backend.api.langfuse_integration import (
@@ -426,6 +427,51 @@ def health_check():
         }
     }
 
+# --- API v1: контрактная поверхность (см. docs/mcp_design.md) ---
+
+@app.get("/api/v1/tools")
+def api_v1_tools():
+    """Манифест инструментов (mcp.json) + модель ошибок + scopes по ролям."""
+    return get_manifest()
+
+
+@app.get("/api/v1/health")
+def api_v1_health():
+    return {"status": "ok", "version": "0.1.0", "api": "v1"}
+
+
+@app.post("/api/v1/chat")
+async def api_v1_chat(request: ChatRequest):
+    return await chat(request)
+
+
+@app.post("/api/v1/chat/stream")
+async def api_v1_chat_stream(request: ChatRequest):
+    return await chat_stream(request)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# --- API v1: контрактная поверхность (см. docs/mcp_design.md) ---
+
+@app.get("/api/v1/tools")
+def api_v1_tools():
+    """Манифест инструментов (mcp.json) + модель ошибок + scopes по ролям."""
+    return get_manifest()
+
+
+@app.get("/api/v1/health")
+def api_v1_health():
+    return {"status": "ok", "version": "0.1.0", "api": "v1"}
+
+
+@app.post("/api/v1/chat")
+async def api_v1_chat(request: ChatRequest):
+    return await chat(request)
+
+
+@app.post("/api/v1/chat/stream")
+async def api_v1_chat_stream(request: ChatRequest):
+    return await chat_stream(request)

@@ -1,0 +1,274 @@
+{
+  "name": "sovereign-ai-analyst",
+  "version": "0.1.0",
+  "description": "MCP-манифест: аналитик по правовым документам (on-premise, air-gapped). Документация контракта: docs/mcp_design.md.",
+  "tools": {
+    "graph.query": {
+      "description": "Выполнение read-only Cypher-запроса к Neo4j (LegalAct/Authority/Keyword). Разрешены только MATCH/OPTIONAL MATCH/UNWIND/WITH/RETURN/SHOW/CALL.",
+      "version": "1.0.0",
+      "scopes": [
+        "graph:read"
+      ],
+      "idempotent": true,
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Read-only Cypher"
+          },
+          "user_role": {
+            "type": "string",
+            "enum": [
+              "junior",
+              "senior",
+              "admin"
+            ],
+            "default": "junior"
+          }
+        }
+      },
+      "errorCodes": [
+        "SOV-1001",
+        "SOV-1003",
+        "SOV-2004",
+        "SOV-4003",
+        "SOV-5001"
+      ]
+    },
+    "graph.schema": {
+      "description": "Схема графа: метки, типы связей, свойства (для генерации Cypher).",
+      "version": "1.0.0",
+      "scopes": [
+        "graph:read"
+      ],
+      "idempotent": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "errorCodes": [
+        "SOV-5001"
+      ]
+    },
+    "vector.search": {
+      "description": "Семантический поиск по коллекции Qdrant 'ruslawod' с RBAC-фильтром access_level.",
+      "version": "1.0.0",
+      "scopes": [
+        "vector:read"
+      ],
+      "idempotent": true,
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "user_role": {
+            "type": "string",
+            "enum": [
+              "junior",
+              "senior",
+              "admin"
+            ],
+            "default": "junior"
+          },
+          "top_k": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 5
+          },
+          "min_score": {
+            "type": "number",
+            "default": 0.3
+          }
+        }
+      },
+      "errorCodes": [
+        "SOV-1001",
+        "SOV-1003",
+        "SOV-5002"
+      ]
+    },
+    "vector.rerank": {
+      "description": "Реранкинг кандидатов кросс-энкодером (Qwen2.5-7B).",
+      "version": "1.0.0",
+      "scopes": [
+        "vector:read"
+      ],
+      "idempotent": true,
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "query",
+          "documents"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "top_k": {
+            "type": "integer",
+            "default": 3
+          }
+        }
+      },
+      "errorCodes": [
+        "SOV-1001",
+        "SOV-1003",
+        "SOV-3002"
+      ]
+    },
+    "vector.upsert": {
+      "description": "Запись документов в Qdrant (только для admin; используется загрузчиком).",
+      "version": "1.0.0",
+      "scopes": [
+        "vector:write"
+      ],
+      "idempotent": true,
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "errorCodes": [
+        "SOV-1001",
+        "SOV-1003",
+        "SOV-4001",
+        "SOV-5002"
+      ]
+    },
+    "chat.complete": {
+      "description": "Полный ответ агента (тот же конвейер, что POST /chat).",
+      "version": "1.0.0",
+      "scopes": [
+        "chat:read"
+      ],
+      "idempotent": false,
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "user_role": {
+            "type": "string",
+            "enum": [
+              "junior",
+              "senior",
+              "admin"
+            ],
+            "default": "junior"
+          }
+        }
+      },
+      "errorCodes": [
+        "SOV-1001",
+        "SOV-1003",
+        "SOV-3001",
+        "SOV-3002"
+      ]
+    },
+    "chat.stream": {
+      "description": "SSE-поток ответа агента (тот же конвейер, что POST /chat/stream).",
+      "version": "1.0.0",
+      "scopes": [
+        "chat:read"
+      ],
+      "idempotent": false,
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "user_role": {
+            "type": "string",
+            "enum": [
+              "junior",
+              "senior",
+              "admin"
+            ],
+            "default": "junior"
+          }
+        }
+      },
+      "errorCodes": [
+        "SOV-1001",
+        "SOV-1003",
+        "SOV-3001",
+        "SOV-3002"
+      ]
+    }
+  },
+  "errorModel": {
+    "pattern": "SOV-XXXX",
+    "ranges": {
+      "SOV-1xxx": "Конфигурация/валидация (invalid args, missing scope, unknown tool)",
+      "SOV-2xxx": "Инструменты (URL invalid, scrape failed, rate limited, not found)",
+      "SOV-3xxx": "LLM/провайдер (timeout, model unavailable, JSON parse fail)",
+      "SOV-4xxx": "RBAC/безопасность (role denied, PII redacted, blocked query)",
+      "SOV-5xxx": "Инфраструктура (Neo4j/Qdrant/Ollama down)"
+    },
+    "retryablePolicy": {
+      "backoff_sec": [
+        1,
+        2,
+        4,
+        30
+      ],
+      "retry_after_header": true
+    }
+  },
+  "scopesByRole": {
+    "junior": [
+      "graph:read",
+      "vector:read",
+      "chat:read"
+    ],
+    "senior": [
+      "graph:read",
+      "vector:read",
+      "chat:read",
+      "web:read"
+    ],
+    "admin": [
+      "graph:read",
+      "vector:read",
+      "vector:write",
+      "chat:read",
+      "web:read",
+      "office:read",
+      "office:write",
+      "admin"
+    ]
+  }
+}

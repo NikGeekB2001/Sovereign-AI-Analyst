@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Синтаксис всех Python-файлов
+        run: python -m compileall -q backend data ui
+
+      - name: Unit-тесты (без внешних БД)
+        run: python -m pytest tests -m "not integration" -q
+
+      - name: Интеграционные тесты (пропускаются, если БД недоступны)
+        run: python -m pytest tests -m integration -q
+        env:
+          NEO4J_URI: bolt://localhost:7687
+          NEO4J_USER: neo4j
+          NEO4J_PASSWORD: password
+          QDRANT_URL: http://localhost:6333

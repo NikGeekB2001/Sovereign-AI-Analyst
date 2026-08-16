@@ -470,13 +470,11 @@ def tool_executor_node(state: AgentState):
         
         # 2. Поиск в Neo4j: выполняем сгенерированный Cypher, иначе fallback по схеме LegalAct
         try:
-            import re
-            cypher_query = (state.get("generated_query") or "").strip()
-            cypher_query = re.sub(r'^```(?:cypher)?\s*|\s*```$', '', cypher_query).strip()
+            from backend.services.cypher_guard import clean_cypher, is_safe_readonly_cypher
+            cypher_query = clean_cypher(state.get("generated_query") or "")
 
             # Защита: выполняем только read-only Cypher, чтобы LLM не мог изменить граф
-            if not re.match(r'^(MATCH|OPTIONAL\s+MATCH|UNWIND|WITH|RETURN|SHOW|CALL)\b', cypher_query, re.IGNORECASE | re.DOTALL) \
-                    or re.search(r'\b(CREATE|MERGE|DELETE|SET|DROP|REMOVE|DETACH|LOAD CSV)\b', cypher_query, re.IGNORECASE | re.DOTALL):
+            if not is_safe_readonly_cypher(cypher_query):
                 print("⚠️ Сгенерированный Cypher невалиден/не read-only, пропускаю (fallback)")
                 cypher_query = ""
 
