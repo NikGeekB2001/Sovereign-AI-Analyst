@@ -223,7 +223,7 @@ def log_graph_query(query: str, result: Any, metadata: Optional[Dict[str, Any]] 
         return None
 
 
-def log_performance_metrics(name: str, value: float, unit: str = "", metadata: Optional[Dict[str, Any]] = None):
+def log_performance_metrics(name: str, value: float, unit: str = "", metadata: Optional[Dict[str, Any]] = None, trace_id: Optional[str] = None):
     """
     Логирует метрики производительности
     """
@@ -233,21 +233,20 @@ def log_performance_metrics(name: str, value: float, unit: str = "", metadata: O
             meta = dict(metadata) if metadata else {}
             if unit:
                 meta["unit"] = unit
-            langfuse.score(
-                name=name,
-                value=value,
-                metadata=meta
-            )
+            score_kwargs = {"name": name, "value": value, "metadata": meta}
+            if trace_id:
+                score_kwargs["trace_id"] = trace_id
+            langfuse.score(**score_kwargs)
     except Exception as e:
         print(f"Ошибка логирования метрик производительности: {e}")
 
 
-def log_security_metrics(event_type: str, severity: str, description: str, metadata: Optional[Dict[str, Any]] = None):
+def log_security_metrics(event_type: str, severity: str, description: str, metadata: Optional[Dict[str, Any]] = None, trace_id: Optional[str] = None):
     """
     Логирует метрики безопасности
     """
     try:
-        trace = create_trace_with_fallback()
+        trace = get_trace(trace_id) if trace_id else create_trace_with_fallback()
         span = trace.span(
             name=f"security_{event_type}",
             input={"severity": severity, "description": description},
@@ -258,28 +257,27 @@ def log_security_metrics(event_type: str, severity: str, description: str, metad
         print(f"Ошибка логирования метрик безопасности: {e}")
 
 
-def log_business_metrics(metric_name: str, value: float, metadata: Optional[Dict[str, Any]] = None):
+def log_business_metrics(metric_name: str, value: float, metadata: Optional[Dict[str, Any]] = None, trace_id: Optional[str] = None):
     """
     Логирует бизнес-метрики
     """
     try:
         langfuse = initialize_langfuse()
         if langfuse:
-            langfuse.score(
-                name=metric_name,
-                value=value,
-                metadata=metadata
-            )
+            score_kwargs = {"name": metric_name, "value": value, "metadata": metadata}
+            if trace_id:
+                score_kwargs["trace_id"] = trace_id
+            langfuse.score(**score_kwargs)
     except Exception as e:
         print(f"Ошибка логирования бизнес-метрик: {e}")
 
 
-def log_error_metrics(error_type: str, error_message: str, severity: str = "medium", metadata: Optional[Dict[str, Any]] = None):
+def log_error_metrics(error_type: str, error_message: str, severity: str = "medium", metadata: Optional[Dict[str, Any]] = None, trace_id: Optional[str] = None):
     """
     Логирует метрики ошибок
     """
     try:
-        trace = create_trace_with_fallback()
+        trace = get_trace(trace_id) if trace_id else create_trace_with_fallback()
         span = trace.span(
             name="error_event",
             input={"type": error_type, "message": error_message, "severity": severity},

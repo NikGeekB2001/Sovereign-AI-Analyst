@@ -99,3 +99,6 @@ ui/.files/
 
 # --- Runtime volume data (docker compose mounts) ---
 infra/data/
+docker-compose-infra.override.yml
+.openclaw_seed.env
+

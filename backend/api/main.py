@@ -98,6 +98,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def _real_trace_id(trace) -> Optional[str]:
+    """Возвращает id трассы только для реального Langfuse (не mock)."""
+    tid = getattr(trace, "id", None)
+    if langfuse and tid and not str(tid).startswith("mock"):
+        return str(tid)
+    return None
+
+
 class ChatRequest(BaseModel):
     message: str
     user_role: str = "куратор"  # куратор, специалист отдела, admin
@@ -205,7 +213,8 @@ async def event_generator(request: ChatRequest):
                 "tokens_used": 0,  # Предполагаемое значение, замените на реальное если доступно
                 "model_name": "streaming-api",  # Предполагаемое значение, замените на реальное если доступно
                 "user_id": request.user_role  # Используем user_role как user_id
-            }
+            },
+            trace_id=_real_trace_id(trace)
         )
         
         # Логируем бизнес-метрики
@@ -217,7 +226,8 @@ async def event_generator(request: ChatRequest):
                 "session_id": request.session_id,
                 "response_length": len(response_text),
                 "processing_time": execution_time_ms/1000  # Преобразуем в секунды
-            }
+            },
+            trace_id=_real_trace_id(trace)
         )
         
         # Добавляем событие завершения с метриками
@@ -282,6 +292,11 @@ async def chat(request: ChatRequest):
                 
         trace = TraceFallback()
     
+    # Спан обработки запроса (привязка к трассе Langfuse)
+    processing_span = None
+    if langfuse and _real_trace_id(trace):
+        processing_span = trace.span(name="request_processing", input={"message": request.message})
+    
     inputs = {
         "messages": [("user", request.message)],
         "user_role": request.user_role,
@@ -332,6 +347,10 @@ async def chat(request: ChatRequest):
             print("⚠️ [API] Response text is empty after processing")
             response_text = "Система не смогла обработать ваш запрос. Пожалуйста, повторите попытку."
 
+        # Завершаем спан обработки
+        if processing_span is not None:
+            processing_span.end(output={"response": response_text})
+
         # Вычисляем время выполнения
         execution_time_ms = (time.time() - start_time) * 1000  # Преобразуем в миллисекунды
         
@@ -348,7 +367,8 @@ async def chat(request: ChatRequest):
                 "tokens_used": 0,  # Предполагаемое значение, замените на реальное если доступно
                 "model_name": "api-chat",  # Предполагаемое значение, замените на реальное если доступно
                 "user_id": request.user_role  # Используем user_role как user_id
-            }
+            },
+            trace_id=_real_trace_id(trace)
         )
         
         # Логируем бизнес-метрики
@@ -358,7 +378,8 @@ async def chat(request: ChatRequest):
             metadata={
                 "user_role": request.user_role,
                 "session_id": request.session_id
-            }
+            },
+            trace_id=_real_trace_id(trace)
         )
         
         # Обновляем трейс с результатом и метриками
@@ -394,7 +415,8 @@ async def chat(request: ChatRequest):
             event_type="api_error",
             severity="critical",
             description=str(e),  # Правильное имя параметра
-            metadata={"user_id": request.user_role}  # Передаем user_id в metadata
+            metadata={"user_id": request.user_role},  # Передаем user_id в metadata
+            trace_id=_real_trace_id(trace)
         )
         
         # Логируем метрики ошибок
@@ -402,7 +424,8 @@ async def chat(request: ChatRequest):
             error_type="api_error",
             error_message=str(e),
             severity="critical",
-            metadata={"user_id": request.user_role}  # Передаем user_id в metadata
+            metadata={"user_id": request.user_role},  # Передаем user_id в metadata
+            trace_id=_real_trace_id(trace)
         )
         
         # Обновляем трейс с ошибкой
