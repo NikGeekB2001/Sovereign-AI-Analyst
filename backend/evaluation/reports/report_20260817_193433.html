@@ -1,19 +1,174 @@
-<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
-<title>Отчёт автооценки RAG (2026-08-17T19:02:03)</title>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Отчёт автооценки RAG — Sovereign-AI-Analyst</title>
 <style>
- body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #f6f7f9; color: #1f2937; }
- .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
- h1 { font-size: 22px; } .muted { color: #6b7280; font-size: 13px; }
- .metrics { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
- .metric { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 16px; min-width: 130px; }
- .m-label { font-size: 12px; color: #6b7280; } .m-val { font-size: 20px; font-weight: 700; }
- table { width: 100%; border-collapse: collapse; background: #fff; font-size: 13px; }
- th { background: #f1f5f9; text-align: left; padding: 8px; border-bottom: 2px solid #e2e8f0; }
- td { padding: 8px; border-bottom: 1px solid #eef2f7; }
-</style></head><body><div class="wrap">
-<h1>Отчёт автооценки RAG (RAGAS-стиль)</h1>
-<div class="muted">mode=graph · role=куратор · top_k=5 · llm=GigaChat · 2026-08-17T19:02:03</div>
-<div class="metrics"><div class="metric"><div class="m-label">faithfulness</div><div class="m-val">0.2361</div></div><div class="metric"><div class="m-label">answer_relevancy</div><div class="m-val">0.7313</div></div><div class="metric"><div class="m-label">context_precision</div><div class="m-val">0.8333</div></div><div class="metric"><div class="m-label">context_recall</div><div class="m-val">0.3055</div></div><div class="metric"><div class="m-label">hallucination_rate</div><div class="m-val">0.7639</div></div><div class="metric"><div class="m-label">avg_answer_s</div><div class="m-val">309.5</div></div><div class="metric"><div class="m-label">avg_retrieval_ms</div><div class="m-val">2496.9</div></div></div>
-<table><thead><tr><th>#</th><th>Вопрос</th><th>Faith</th><th>Rel</th><th>CP</th><th>CR</th><th>Halluc</th><th>Латентн.</th></tr></thead>
-<tbody><tr><td>1</td><td>Какие действующие законы связаны с налогами?</td><td>0.5</td><td>0.7353</td><td>1.0</td><td>0.3333</td><td>0.5</td><td>493.8с</td></tr><tr><td>2</td><td>Что регулирует закон о банковской деятельности?</td><td>0.0</td><td>0.8155</td><td>1.0</td><td>0.0</td><td>1.0</td><td>316.6с</td></tr><tr><td>3</td><td>Какие органы издавали правовые акты в корпусе документов?</td><td>0.3333</td><td>0.6164</td><td>0.0</td><td>0.3333</td><td>0.6667</td><td>244.8с</td></tr><tr><td>4</td><td>С какими ключевыми словами связан закон о закупках?</td><td>0.3333</td><td>0.6669</td><td>1.0</td><td>0.3333</td><td>0.6667</td><td>262.7с</td></tr><tr><td>5</td><td>Какой орган принял закон о налоге на добавленную стоимость?</td><td>0.25</td><td>0.8647</td><td>1.0</td><td>0.3333</td><td>0.75</td><td>272.3с</td></tr><tr><td>6</td><td>Есть ли в корпусе акты, связанные с персональными данными?</td><td>0.0</td><td>0.6891</td><td>1.0</td><td>0.5</td><td>1.0</td><td>267.0с</td></tr></tbody></table>
-</div></body></html>
+ :root{
+  --bg:#eef2f7; --card:#ffffff; --line:#e2e8f0; --txt:#0f172a; --mut:#64748b;
+  --green:#16a34a; --amber:#d97706; --red:#dc2626; --blue:#2563eb; --indigo:#4f46e5;
+ }
+ *{box-sizing:border-box}
+ body{margin:0;background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;line-height:1.55;}
+ .wrap{max-width:1120px;margin:0 auto;padding:28px 20px 70px;}
+ .hero{background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 60%,#312e81 100%);color:#fff;border-radius:18px;padding:26px 30px;box-shadow:0 10px 30px rgba(30,58,138,.25);}
+ .hero h1{margin:0 0 8px;font-size:24px;letter-spacing:.2px;}
+ .hero .sub{color:#c7d2fe;font-size:14px;}
+ .badges{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;}
+ .badge{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:4px 13px;font-size:12.5px;}
+ .badge b{font-weight:700;}
+ .verdict{display:flex;gap:14px;align-items:flex-start;background:#fef3c7;border:1px solid #fcd34d;border-radius:14px;padding:16px 18px;margin:20px 0;font-size:14.5px;}
+ .verdict .ic{flex:0 0 34px;height:34px;border-radius:50%;background:#d97706;color:#fff;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center;}
+ .verdict b{color:#92400e;}
+ h2{font-size:17px;margin:34px 0 14px;color:#1e293b;}
+ .legend{display:flex;flex-wrap:wrap;gap:18px;font-size:12.5px;color:var(--mut);margin:6px 0 16px;}
+ .legend span{display:flex;align-items:center;gap:6px;}
+ .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+ .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+ .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+ .card .lbl{font-size:12px;color:var(--mut);font-weight:600;letter-spacing:.2px;}
+ .card .val{font-size:26px;font-weight:800;margin:4px 0 2px;font-variant-numeric:tabular-nums;}
+ .card .tgt{font-size:11.5px;color:var(--mut);}
+ .card .tgt b{color:#475569;}
+ .bar{height:8px;background:#e5e7eb;border-radius:999px;margin-top:10px;overflow:hidden;}
+ .bar i{display:block;height:100%;border-radius:999px;}
+ .chip{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 8px;margin-left:8px;vertical-align:middle;}
+ .chip.g{background:#dcfce7;color:#166534;}
+ .chip.a{background:#fef3c7;color:#92400e;}
+ .chip.r{background:#fee2e2;color:#991b1b;}
+ table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:13px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+ th{background:#f1f5f9;text-align:left;padding:11px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#475569;border-bottom:2px solid var(--line);}
+ td{padding:11px 10px;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+ tbody tr:last-child td{border-bottom:none;}
+ tbody tr:hover{background:#f8fafc;}
+ td.num{text-align:center;font-weight:700;font-variant-numeric:tabular-nums;}
+ .c-g{color:var(--green);} .c-a{color:var(--amber);} .c-r{color:var(--red);} .c-n{color:#94a3b8;}
+ td.cell{text-align:center;font-weight:700;border-radius:6px;font-variant-numeric:tabular-nums;}
+ .bg-g{background:#dcfce7;} .bg-a{background:#fef3c7;} .bg-r{background:#fee2e2;}
+ .q{font-size:13px;}
+ .insight{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--indigo);border-radius:12px;padding:18px 20px;margin-top:22px;}
+ .insight h3{margin:0 0 8px;font-size:15px;}
+ .insight p{margin:6px 0;font-size:14px;}
+ .insight ul{margin:8px 0 0;padding-left:20px;font-size:13.5px;}
+ .foot{color:var(--mut);font-size:12px;margin-top:26px;text-align:center;}
+ @media(max-width:640px){ .grid{grid-template-columns:1fr 1fr;} th,td{padding:9px 7px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+ <div class="hero">
+  <h1>Отчёт автооценки RAG (RAGAS-стиль)</h1>
+  <div class="sub">Sovereign-AI-Analyst · судья (LLM-as-a-Judge): GigaChat · 6 вопросов золотого набора</div>
+  <div class="badges">
+   <span class="badge">mode: <b>graph</b></span>
+   <span class="badge">role: <b>куратор</b></span>
+   <span class="badge">top_k: <b>5</b></span>
+   <span class="badge">llm: <b>GigaChat</b></span>
+   <span class="badge">2026-08-17 19:02</span>
+  </div>
+ </div>
+
+ <div class="verdict">
+  <div class="ic">!</div>
+  <div><b>Ключевой вывод:</b> context_precision высокий (0.8333), а faithfulness низкий (0.2361) — значит <b>ищем точно, но отвечаем слабо</b>. Узкое место — генератор ответов (qwen2.5:7b на CPU), а не поиск. Прямое обоснование: перевести GigaChat с роли судьи на роль генератора.</div>
+ </div>
+
+ <h2>Агрегат метрик</h2>
+ <div class="legend">
+  <span><span class="dot" style="background:#16a34a"></span> цель достигнута</span>
+  <span><span class="dot" style="background:#d97706"></span> близко к цели</span>
+  <span><span class="dot" style="background:#dc2626"></span> вне цели</span>
+ </div>
+ <div class="grid">
+  <div class="card">
+   <div class="lbl">faithfulness <span class="chip r">вне цели</span></div>
+   <div class="val" style="color:#dc2626">0.2361</div>
+   <div class="tgt">цель <b>≥ 0.85</b> · доля утверждений, подтверждённых контекстом</div>
+   <div class="bar"><i style="width:23.61%;background:#dc2626"></i></div>
+  </div>
+  <div class="card">
+   <div class="lbl">answer_relevancy <span class="chip g">цель</span></div>
+   <div class="val" style="color:#16a34a">0.7313</div>
+   <div class="tgt">цель <b>≥ 0.7</b> · релевантность ответа вопросу</div>
+   <div class="bar"><i style="width:73.13%;background:#16a34a"></i></div>
+  </div>
+  <div class="card">
+   <div class="lbl">context_precision <span class="chip g">цель</span></div>
+   <div class="val" style="color:#16a34a">0.8333</div>
+   <div class="tgt">цель <b>≥ 0.7</b> · релевантные чанки выше в выдаче</div>
+   <div class="bar"><i style="width:83.33%;background:#16a34a"></i></div>
+  </div>
+  <div class="card">
+   <div class="lbl">context_recall <span class="chip r">вне цели</span></div>
+   <div class="val" style="color:#dc2626">0.3055</div>
+   <div class="tgt">цель <b>≥ 0.7</b> · полнота извлечённого контекста</div>
+   <div class="bar"><i style="width:30.55%;background:#dc2626"></i></div>
+  </div>
+  <div class="card">
+   <div class="lbl">hallucination_rate <span class="chip r">вне цели</span></div>
+   <div class="val" style="color:#dc2626">0.7639</div>
+   <div class="tgt">цель <b>≤ 0.15</b> · доля выдуманного (= 1 − faithfulness)</div>
+   <div class="bar"><i style="width:76.39%;background:#dc2626"></i></div>
+  </div>
+  <div class="card">
+   <div class="lbl">avg_answer_s <span class="chip r">вне цели</span></div>
+   <div class="val" style="color:#dc2626">309.5<small style="font-size:14px;font-weight:600"> с</small></div>
+   <div class="tgt">цель <b>p50 ≤ 30 с</b> · время генерации ответа</div>
+  </div>
+  <div class="card">
+   <div class="lbl">avg_retrieval_ms <span class="chip a">близко</span></div>
+   <div class="val" style="color:#d97706">2496.9<small style="font-size:14px;font-weight:600"> мс</small></div>
+   <div class="tgt">цель <b>≤ 1500 мс</b> · эмбеддинг + Qdrant</div>
+  </div>
+ </div>
+
+ <h2>По вопросам</h2>
+ <table>
+  <thead>
+   <tr><th style="width:30px">#</th><th>Вопрос</th><th>Faithfulness</th><th>Relevancy</th><th>Precision</th><th>Recall</th><th>Hallucination</th><th>Латентность</th></tr>
+  </thead>
+  <tbody>
+   <tr>
+    <td class="c-n">1</td><td class="q">Какие действующие законы связаны с налогами?</td>
+    <td class="cell bg-r">0.5</td><td class="cell bg-g">0.7353</td><td class="cell bg-g">1.0</td><td class="cell bg-r">0.3333</td><td class="cell bg-r">0.5</td><td class="num c-r">493.8с</td>
+   </tr>
+   <tr>
+    <td class="c-n">2</td><td class="q">Что регулирует закон о банковской деятельности?</td>
+    <td class="cell bg-r">0.0</td><td class="cell bg-g">0.8155</td><td class="cell bg-g">1.0</td><td class="cell bg-r">0.0</td><td class="cell bg-r">1.0</td><td class="num c-r">316.6с</td>
+   </tr>
+   <tr>
+    <td class="c-n">3</td><td class="q">Какие органы издавали правовые акты в корпусе документов?</td>
+    <td class="cell bg-r">0.3333</td><td class="cell bg-r">0.6164</td><td class="cell bg-r">0.0</td><td class="cell bg-r">0.3333</td><td class="cell bg-r">0.6667</td><td class="num c-r">244.8с</td>
+   </tr>
+   <tr>
+    <td class="c-n">4</td><td class="q">С какими ключевыми словами связан закон о закупках?</td>
+    <td class="cell bg-r">0.3333</td><td class="cell bg-a">0.6669</td><td class="cell bg-g">1.0</td><td class="cell bg-r">0.3333</td><td class="cell bg-r">0.6667</td><td class="num c-r">262.7с</td>
+   </tr>
+   <tr>
+    <td class="c-n">5</td><td class="q">Какой орган принял закон о налоге на добавленную стоимость?</td>
+    <td class="cell bg-r">0.25</td><td class="cell bg-g">0.8647</td><td class="cell bg-g">1.0</td><td class="cell bg-r">0.3333</td><td class="cell bg-r">0.75</td><td class="num c-r">272.3с</td>
+   </tr>
+   <tr>
+    <td class="c-n">6</td><td class="q">Есть ли в корпусе акты, связанные с персональными данными?</td>
+    <td class="cell bg-r">0.0</td><td class="cell bg-a">0.6891</td><td class="cell bg-g">1.0</td><td class="cell bg-r">0.5</td><td class="cell bg-r">1.0</td><td class="num c-r">267.0с</td>
+   </tr>
+  </tbody>
+ </table>
+
+ <div class="insight">
+  <h3>Что это значит и что делать</h3>
+  <p><b>Faithfulness провалился (0.2361), а context_precision отличный (0.8333)</b> — ретривер находит правильные документы, но генератор не умеет на них честно отвечать: в 76% случаев он добавляет не подтверждённые контекстом утверждения.</p>
+  <ul>
+   <li><b>Проблема не в поиске</b>: precision 0.8333 + recall 0.3055 → ретривер точен, но недобирает полноту (top_k=5, min_score=0.3, RBAC скрывает internal-документы для «куратора»).</li>
+   <li><b>Проблема в генераторе</b>: qwen2.5:7b на CPU слаб для синтеза; 309.5 с на ответ — тоже красный флаг.</li>
+   <li><b>Действие №1</b>: переключить GigaChat с судьи на генератор (клиент уже есть — <code>GigaChatClient</code> в <code>backend/services/unified_llm_client.py</code>).</li>
+   <li><b>Действие №2</b>: поднять context_recall — гибридный RAG (BM25+вектор) и/или поднять top_k для роли «куратор».</li>
+  </ul>
+ </div>
+
+ <div class="foot">Сгенерировано run_evaluation.py · judge = GigaChat (OAuth2) · golden set: backend/evaluation/test_dataset.jsonl · отчёт: report_20260817_193433</div>
+</div>
+</body>
+</html>
