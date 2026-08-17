@@ -125,7 +125,16 @@ class RAGRetriever:
                         "access_level": point.payload.get("access_level", "public")
                     })
 
-            print(f"✅ Retriever: Найдено {len(filtered_results)} документов")
+            # 5. Дедупликация по act_id (оставляем лучший score)
+            deduped = {}
+            for d in filtered_results:
+                key = d["act_id"] or str(d["id"])
+                if key not in deduped or d["score"] > deduped[key]["score"]:
+                    deduped[key] = d
+            filtered_results = list(deduped.values())
+            filtered_results.sort(key=lambda x: x["score"], reverse=True)
+
+            print(f"✅ Retriever: Найдено {len(filtered_results)} документов (после дедупликации)")
             return filtered_results
 
         except Exception as e:

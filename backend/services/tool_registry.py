@@ -128,7 +128,7 @@ ERROR_MODEL = {
         "SOV-1xxx": "Конфигурация/валидация (invalid args, missing scope, unknown tool)",
         "SOV-2xxx": "Инструменты (URL invalid, scrape failed, rate limited, not found)",
         "SOV-3xxx": "LLM/провайдер (timeout, model unavailable, JSON parse fail)",
-        "SOV-4xxx": "RBAC/безопасность (role denied, PII redacted, blocked query)",
+        "SOV-4xxx": "RBAC/безопасность (role denied, invalid api key, PII redacted, blocked query)",
         "SOV-5xxx": "Инфраструктура (Neo4j/Qdrant/Ollama down)",
     },
     "retryablePolicy": {"backoff_sec": [1, 2, 4, 30], "retry_after_header": True},

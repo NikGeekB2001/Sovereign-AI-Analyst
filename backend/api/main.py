@@ -6,7 +6,7 @@ import os
 import logging
 import time  # Для измерения времени выполнения
 from typing import Optional, Dict, Any
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 
 # Загрузка .env (креды БД/LLM) — файл gitignored
 try:
@@ -495,6 +495,31 @@ def metrics():
         lines.append(f"sov_chat_latency_seconds_total {_METRICS['sov_chat_latency_seconds_total']}")
     return PlainTextResponse("\n".join(lines) + "\n")
 
+def _load_api_keys() -> Dict[str, str]:
+    """API-ключи (Фаза 2 MCP): JSON-словарь key -> роль из env API_KEYS."""
+    raw = os.getenv("API_KEYS", "")
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
+API_KEYS = _load_api_keys()
+
+
+def _resolve_role(x_api_key: Optional[str], body_role: str) -> str:
+    """Фаза 2 MCP: X-API-Key -> роль. Без ключа — роль из тела (совместимость)."""
+    if not x_api_key:
+        return body_role
+    role = API_KEYS.get(x_api_key)
+    if not role:
+        raise HTTPException(status_code=401, detail={"code": "SOV-4002", "message": "invalid api key"})
+    return role
+
+
 class ToolCallRequest(BaseModel):
     tool: str
     arguments: dict = {}
@@ -502,14 +527,15 @@ class ToolCallRequest(BaseModel):
 
 
 @app.post("/api/v1/tools/call")
-async def api_v1_tools_call(req: ToolCallRequest):
+async def api_v1_tools_call(req: ToolCallRequest, x_api_key: Optional[str] = Header(None, alias="X-API-Key")):
     """Единая точка вызова инструмента (см. docs/diagrams/tool_call_sequence.puml).
 
     Обёртка результата: {"ok": true, "data"} или HTTP-статус по SOV-коду:
     422 - SOV-1xxx (валидация), 403 - SOV-4xxx (RBAC), 502 - SOV-3xxx (LLM),
     503 - SOV-5xxx (инфраструктура).
     """
-    result = execute_tool(req.tool, req.arguments or {}, req.user_role)
+    role = _resolve_role(x_api_key, req.user_role)
+    result = execute_tool(req.tool, req.arguments or {}, role)
     if not result["ok"]:
         code = result["error"]["code"]
         status = 422 if code.startswith("SOV-1") else (
