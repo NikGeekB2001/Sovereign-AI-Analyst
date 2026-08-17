@@ -273,7 +273,7 @@ curl -X POST http://localhost:8000/api/v1/tools/call \
 |---|---|---|---|
 | 0 | ✅ Тесты+CI (загрузчик, retriever, py_compile, GH Actions) | 2 дня | **СДЕЛАНО 2026-08-16**: 44 теста (40 unit + 4 integration), `.github/workflows/ci.yml` |
 | 1 | ✅ Tool Registry + mcp.json + обёртки существующих инструментов | 2 дня | **СДЕЛАНО 2026-08-16**: `backend/services/tool_registry.py`, `mcp.json`, `GET /api/v1/tools` (7 инструментов), алиасы `/api/v1/chat*` |
-| 2 | API-ключ → роль (уровень 1) | 1 день | роль из ключа, не из тела |
+| 2 | ✅ API-ключ → роль (уровень 1) | 1 день | **СДЕЛАНО 2026-08-17**: заголовок `X-API-Key` -> роль (env `API_KEYS`, JSON key->role); невалидный ключ -> 401 `SOV-4002`; без ключа - `user_role` из тела (совместимость) |
 | 3 | SSE-контракт (события node_start/…/done) | 1 день | UI показывает метрики; done с response_id |
 | 4 | web.* (Firecrawl, кэш, лимиты) | 2–3 дня | scrape со счётчиком лимита, кэш в Qdrant |
 | 5 | office.* + chart.* | 3–4 дня | read/write/merge с audit-логом |

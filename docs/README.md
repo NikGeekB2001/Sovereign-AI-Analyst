@@ -9,8 +9,9 @@
 - **mcp_design.md** - Контракт-дизайн API/MCP-поверхности: каталог инструментов с JSON Schema, модель ошибок SOV-*, scopes/RBAC, SSE-контракт, наблюдаемость, версии, план внедрения (contract-first, как проектируют API)
 - **AGENTS.md** - состав и взаимодействие агентов (7 узлов LangGraph, Plan-Observe-Act): роли, рёбра, данные между агентами, RBAC; визуализация - diagrams/agents_flow.puml / .svg
 - **evaluation/** - автооценка RAG-качества (RAGAS-стиль): backend/evaluation/ragas_metrics.py, run_evaluation.py, золотой набор test_dataset.jsonl, отчёты reports/
-- **PERFORMANCE_METRICS.md** - метрики производительности: качество RAG (RAGAS-стиль: faithfulness, answer_relevancy, context_precision/recall, hallucination_rate) и метрики системы (latency, токены, кэш, SOV-ошибки); автооценка через `backend/evaluation/run_evaluation.py` + золотой набор `test_dataset.jsonl`
-- **diagrams/tool_call_sequence.puml / .svg** - секвенс-диаграмма вызова тулов (POST /api/v1/tools/call): валидация, scopes, исполнение, SOV-ошибки
+- **PERFORMANCE_METRICS.md** - метрики производительности: качество RAG (faithfulness, answer_relevancy, context_precision/recall, hallucination_rate; judge = GigaChat) и метрики системы (latency, токены, кэш, SOV-ошибки); реальные результаты прогона 2026-08-17 + золотой набор `test_dataset.jsonl`
+- **diagrams/tool_call_sequence.puml / .svg** - секвенс-диаграмма вызова тулов (POST /api/v1/tools/call): аутентификация X-API-Key, валидация, scopes, исполнение, SOV-ошибки
+- **diagrams/mcp_phase2_auth.puml / .svg** - секвенс-диаграмма авторизации X-API-Key -> роль (401 SOV-4002 при невалидном ключе)
 - **diagrams/mcp_sequence.puml / .svg** - секвенс-диаграмма MCP-контракта: аутентификация, Tool Registry, конвейер агента, RBAC, SSE (PlantUML-исходник + готовый SVG-рендер)
 - **audit_2026-08-16.md** - Аудит репозитория и плана v2 по результатам живого E2E-прогона: доказанная работоспособность, 9 исправленных багов, риски, скорректированный roadmap
 

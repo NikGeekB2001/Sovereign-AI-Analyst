@@ -1,0 +1,91 @@
+{
+  "generated_at": "2026-08-17T19:02:03",
+  "mode": "graph",
+  "role": "куратор",
+  "top_k": 5,
+  "llm": "GigaChat",
+  "dataset": "backend/evaluation/test_dataset.jsonl",
+  "items": [
+    {
+      "question": "Какие действующие законы связаны с налогами?",
+      "answer_len": 401,
+      "contexts": 7,
+      "retrieval_ms": 2439.7,
+      "answer_s": 493.8,
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.7353,
+      "context_precision": 1.0,
+      "context_recall": 0.3333,
+      "hallucination_rate": 0.5
+    },
+    {
+      "question": "Что регулирует закон о банковской деятельности?",
+      "answer_len": 151,
+      "contexts": 7,
+      "retrieval_ms": 2588.6,
+      "answer_s": 316.6,
+      "faithfulness": 0.0,
+      "answer_relevancy": 0.8155,
+      "context_precision": 1.0,
+      "context_recall": 0.0,
+      "hallucination_rate": 1.0
+    },
+    {
+      "question": "Какие органы издавали правовые акты в корпусе документов?",
+      "answer_len": 568,
+      "contexts": 6,
+      "retrieval_ms": 2391.1,
+      "answer_s": 244.8,
+      "faithfulness": 0.3333,
+      "answer_relevancy": 0.6164,
+      "context_precision": 0.0,
+      "context_recall": 0.3333,
+      "hallucination_rate": 0.6667
+    },
+    {
+      "question": "С какими ключевыми словами связан закон о закупках?",
+      "answer_len": 135,
+      "contexts": 6,
+      "retrieval_ms": 2623.7,
+      "answer_s": 262.7,
+      "faithfulness": 0.3333,
+      "answer_relevancy": 0.6669,
+      "context_precision": 1.0,
+      "context_recall": 0.3333,
+      "hallucination_rate": 0.6667
+    },
+    {
+      "question": "Какой орган принял закон о налоге на добавленную стоимость?",
+      "answer_len": 163,
+      "contexts": 7,
+      "retrieval_ms": 2494.8,
+      "answer_s": 272.3,
+      "faithfulness": 0.25,
+      "answer_relevancy": 0.8647,
+      "context_precision": 1.0,
+      "context_recall": 0.3333,
+      "hallucination_rate": 0.75
+    },
+    {
+      "question": "Есть ли в корпусе акты, связанные с персональными данными?",
+      "answer_len": 335,
+      "contexts": 7,
+      "retrieval_ms": 2443.5,
+      "answer_s": 267.0,
+      "faithfulness": 0.0,
+      "answer_relevancy": 0.6891,
+      "context_precision": 1.0,
+      "context_recall": 0.5,
+      "hallucination_rate": 1.0
+    }
+  ],
+  "aggregate": {
+    "faithfulness": 0.2361,
+    "answer_relevancy": 0.7313,
+    "context_precision": 0.8333,
+    "context_recall": 0.3055,
+    "hallucination_rate": 0.7639,
+    "avg_answer_s": 309.5,
+    "avg_retrieval_ms": 2496.9
+  }
+}
