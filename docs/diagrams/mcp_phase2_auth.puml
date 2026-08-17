@@ -1,0 +1,27 @@
+@startuml mcp_phase2_auth
+!theme plain
+title MCP Фаза 2: авторизация X-API-Key -> роль
+
+actor "Client" as C
+participant "API Gateway\n/api/v1/tools/call" as G
+participant "Auth\nX-API-Key -> роль" as A
+participant "Registry+Dispatcher\nвалидация + scopes" as D
+participant "Tool\ngraph/vector/chat" as T
+
+C -> G : POST /api/v1/tools/call + X-API-Key
+G -> A : resolve(X-API-Key)
+alt ключ невалиден
+  A --> G : 401 SOV-4002
+else ключ валиден
+  G -> D : tool + arguments + role
+  D -> T : execute (validated + scoped)
+  T --> D : data
+  D --> G : {"ok": true, "data"}
+  G --> C : HTTP 200 / 422 / 403
+end
+note over D
+  SOV-1001/1003 (валидация) -> 422
+  SOV-4001 (scopes) -> 403
+  SOV-5xxx (инфра) -> 503
+end note
+@enduml
