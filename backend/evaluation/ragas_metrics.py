@@ -18,10 +18,11 @@ Judge-LLM: Ollama/vLLM через UnifiedLLMClient (по умолчанию qwen
 from __future__ import annotations
 
 import json
+import os
 from typing import Dict, List, Optional
 
 from backend.services.rag_retriever import get_retriever
-from backend.services.unified_llm_client import get_unified_client
+from backend.services.unified_llm_client import get_unified_client, UnifiedLLMClient
 
 
 # ---------------------------------------------------------------------------
@@ -148,8 +149,15 @@ def _p_relevant(question: str, contexts: List[str]) -> str:
 
 class RagasEvaluator:
     def __init__(self, model: Optional[str] = None, role: str = "куратор",
-                 top_k: int = 5, temperature: float = 0.0):
-        self.llm = get_unified_client(model=model)
+                 top_k: int = 5, temperature: float = 0.0, backend: Optional[str] = None):
+        if backend is None:
+            backend = os.getenv("LLM_JUDGE_BACKEND", "")
+        if backend:
+            if model is None:
+                model = "GigaChat" if backend == "gigachat" else None
+            self.llm = UnifiedLLMClient(backend=backend, model=model or "qwen2.5:7b")
+        else:
+            self.llm = get_unified_client(model=model)
         self.retriever = get_retriever()
         self.role = role
         self.top_k = top_k

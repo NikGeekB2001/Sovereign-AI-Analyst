@@ -128,6 +128,7 @@ def main() -> int:
     ap.add_argument("--role", default=os.getenv("EVAL_ROLE", "куратор"))
     ap.add_argument("--top-k", type=int, default=5)
     ap.add_argument("--model", default=None)
+    ap.add_argument("--judge-backend", default=None, help="бэкенд judge (ollama|vllm|gigachat); по умолчанию LLM_JUDGE_BACKEND или LLM_BACKEND")
     args = ap.parse_args()
 
     items = load_dataset(args.dataset)
@@ -138,7 +139,7 @@ def main() -> int:
         return 1
 
     print(f"[eval] вопросов: {len(items)}, mode={args.mode}, role={args.role}, top_k={args.top_k}")
-    evaluator = RagasEvaluator(model=args.model, role=args.role, top_k=args.top_k)
+    evaluator = RagasEvaluator(model=args.model, role=args.role, top_k=args.top_k, backend=args.judge_backend)
 
     report: Dict = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),

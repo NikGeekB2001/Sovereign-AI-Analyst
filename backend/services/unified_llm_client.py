@@ -9,6 +9,128 @@ from typing import Optional, List, Dict, Any
 import time
 
 
+_GC_TOKEN = {"token": None, "expires": 0.0}
+
+
+
+class GigaChatClient:
+    """Client for GigaChat API (Sber) via OAuth2 client-credentials.
+
+    Токен кэшируется на уровне модуля (_GC_TOKEN), чтобы переживать
+    пересоздание экземпляров (синглтон get_unified_client меняет backend).
+    """
+    TOKEN_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
+    CHAT_URL = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
+
+    def __init__(self, base_url=None, model=None):
+        self.model = model or os.getenv("GIGACHAT_MODEL", "GigaChat")
+        self.client_id = os.getenv("GIGACHAT_CLIENT_ID", "")
+        self.client_secret = os.getenv("GIGACHAT_CLIENT_SECRET", "")
+
+    # -- токен --
+    def _access_token(self) -> str:
+        global _GC_TOKEN
+        now = time.time()
+        if _GC_TOKEN.get("token") and _GC_TOKEN.get("expires", 0) > now + 30:
+            return _GC_TOKEN["token"]
+        import base64
+        import requests
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        basic = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
+        last_err = None
+        for attempt in range(3):  # oauth-эндпоинт Сбера периодически отдаёт 401 — ретраим
+            try:
+                resp = requests.post(
+                    self.TOKEN_URL,
+                    headers={
+                        "Authorization": f"Basic {basic}",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "RqUID": self.client_id or "sovereign-ai-analyst",
+                    },
+                    data={"scope": "GIGACHAT_API_PERS"},
+                    timeout=30,
+                    verify=False,  # ngw.devices.sberbank.ru использует собственный сертификат
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    token = data.get("access_token")
+                    if token:
+                        expires_at = data.get("expires_at")
+                        expires = expires_at / 1000.0 if expires_at else now + 1800.0
+                        _GC_TOKEN["token"] = token
+                        _GC_TOKEN["expires"] = expires
+                        return token
+                    last_err = f"нет access_token: {list(data.keys())}"
+                else:
+                    last_err = f"HTTP {resp.status_code}: {resp.text[:200]}"
+            except Exception as e:
+                last_err = str(e)
+            time.sleep(1.5 * (attempt + 1))
+        raise Exception(f"GigaChat: не удалось получить access_token: {last_err}")
+
+    # -- общий вызов --
+    def _chat_completion(self, messages, temperature, max_tokens, json_mode):
+        import requests
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
+        start = time.time()
+
+        def _do(auth):
+            return requests.post(
+                self.CHAT_URL,
+                json=payload,
+                headers={"Authorization": auth, "Content-Type": "application/json"},
+                timeout=int(os.getenv("LLM_TIMEOUT", "120")),
+                verify=False,  # gigachat.devices.sberbank.ru использует собственный сертификат
+            )
+
+        token = self._access_token()
+        resp = _do(f"Bearer {token}")
+        if resp.status_code == 401:
+            _GC_TOKEN["expires"] = 0  # форс-обновление токена
+            token = self._access_token()
+            resp = _do(f"Bearer {token}")
+        if resp.status_code != 200:
+            raise Exception(f"GigaChat API error {resp.status_code}: {resp.text[:300]}")
+        data = resp.json()
+        content = (data.get("choices") or [{}])[0].get("message", {}).get("content", "") or ""
+        latency_ms = (time.time() - start) * 1000
+        return {
+            "response": content.strip(),
+            "latency": latency_ms,
+            "model": data.get("model", self.model),
+        }
+
+    def generate(self, prompt, system_prompt=None, temperature=0.7, max_tokens=2048, json_mode=False):
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        return self._chat_completion(messages, temperature, max_tokens, json_mode)
+
+    def chat(self, messages, temperature=0.7, max_tokens=2048, json_mode=False):
+        return self._chat_completion(messages, temperature, max_tokens, json_mode)
+
+    def check_health(self) -> bool:
+        try:
+            self._access_token()
+            return True
+        except Exception:
+            return False
+
+    def list_models(self):
+        return [self.model]
+
+
 class OllamaClient:
     """Client for Ollama API."""
     
@@ -379,6 +501,8 @@ class UnifiedLLMClient:
                 print(f"Warning: Could not initialize vLLM client ({e}), falling back to Ollama")
                 self.client = OllamaClient(model=model)
                 self.backend = "ollama"
+        elif self.backend == "gigachat":
+            self.client = GigaChatClient(model=model)
         else:  # default to ollama
             self.client = OllamaClient(model=model)
     
